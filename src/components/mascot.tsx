@@ -1,41 +1,43 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 
 /**
- * Original robot mascots: soft colorful bodies, a glossy visor, no mouth and two
- * glowing eyes that blink. Rendered as inline SVG so every bot gets a distinct
- * silhouette, palette and eye style without any raster asset.
+ * Original "little ant" mascots: pastel body, big head with a dark visor, two
+ * antennae, tiny legs, no mouth and expressive eyes that blink. Rendered as
+ * inline SVG so every bot gets its own head shape, palette, eyes and antennae.
  */
 
-type Shape = 'egg' | 'squircle' | 'pebble' | 'bell' | 'pill' | 'blob';
-type Eyes = 'oval' | 'round' | 'tall' | 'tilted' | 'sleepy';
-type Accessory = 'antenna' | 'ears' | 'twin-antenna' | 'fin' | 'band' | 'bow' | 'none';
+type Shape = 'round' | 'square' | 'triangle' | 'hexagon' | 'long';
+type Eyes = 'happy' | 'dots' | 'wink' | 'sleepy' | 'curious';
+type Antenna = 'classic' | 'curved' | 'ball' | 'heart' | 'star' | 'wavy';
 
 interface MascotSpec {
   id: string;
   label: string;
   shape: Shape;
   eyes: Eyes;
-  accessory: Accessory;
+  antenna: Antenna;
+  /** Saturated brand color, used for UI tints. */
   primary: string;
+  /** Pastel body color. */
   secondary: string;
-  face: string;
-  eye: string;
 }
 
+const INK = '#1e1e23';
+
 export const MASCOT_SPECS: readonly MascotSpec[] = [
-  { id: 'preset-hydra', label: 'Hydra', shape: 'egg', eyes: 'oval', accessory: 'twin-antenna', primary: '#0a84ff', secondary: '#7fd0ff', face: '#0b1e3a', eye: '#9fe0ff' },
-  { id: 'preset-ingenieur', label: 'Boulon', shape: 'squircle', eyes: 'round', accessory: 'band', primary: '#ff9f0a', secondary: '#ffd66b', face: '#2a1a00', eye: '#ffe9b3' },
-  { id: 'preset-analyste', label: 'Prisme', shape: 'bell', eyes: 'tall', accessory: 'antenna', primary: '#bf5af2', secondary: '#e4b4ff', face: '#22082f', eye: '#f1d6ff' },
-  { id: 'preset-plume', label: 'Plume', shape: 'pill', eyes: 'tilted', accessory: 'fin', primary: '#ff375f', secondary: '#ffa3b8', face: '#33081a', eye: '#ffd9e3' },
-  { id: 'preset-compagnon', label: 'Bulle', shape: 'blob', eyes: 'round', accessory: 'ears', primary: '#30d158', secondary: '#9cf0b3', face: '#062a12', eye: '#d6ffe1' },
-  { id: 'preset-conteur', label: 'Lanterne', shape: 'pebble', eyes: 'sleepy', accessory: 'bow', primary: '#ffd60a', secondary: '#fff0a0', face: '#2b2300', eye: '#fff7c8' },
-  { id: 'preset-coach', label: 'Sprint', shape: 'bell', eyes: 'tilted', accessory: 'band', primary: '#ff453a', secondary: '#ffa199', face: '#330806', eye: '#ffe3e0' },
-  { id: 'preset-zen', label: 'Galet', shape: 'pebble', eyes: 'sleepy', accessory: 'none', primary: '#64d2ff', secondary: '#c2ecff', face: '#082330', eye: '#e2f7ff' },
-  { id: 'preset-tuteur', label: 'Cube', shape: 'squircle', eyes: 'oval', accessory: 'antenna', primary: '#5e5ce6', secondary: '#b4b2ff', face: '#12113a', eye: '#e4e3ff' },
-  { id: 'preset-avocat-du-diable', label: 'Pique', shape: 'egg', eyes: 'tall', accessory: 'twin-antenna', primary: '#c39a6b', secondary: '#eddcc3', face: '#241a0f', eye: '#fff1de' },
-  { id: 'persona-default', label: 'Orbe', shape: 'blob', eyes: 'round', accessory: 'antenna', primary: '#8e8e93', secondary: '#d1d1d6', face: '#1c1c1f', eye: '#f2f2f7' },
+  { id: 'preset-hydra', label: 'Hydra', shape: 'round', eyes: 'happy', antenna: 'classic', primary: '#0a84ff', secondary: '#bcd9ff' },
+  { id: 'preset-ingenieur', label: 'Boulon', shape: 'square', eyes: 'dots', antenna: 'classic', primary: '#ff9f0a', secondary: '#ffe08a' },
+  { id: 'preset-analyste', label: 'Prisme', shape: 'hexagon', eyes: 'curious', antenna: 'ball', primary: '#bf5af2', secondary: '#dcc8ff' },
+  { id: 'preset-plume', label: 'Plume', shape: 'round', eyes: 'wink', antenna: 'heart', primary: '#ff375f', secondary: '#ffc4cc' },
+  { id: 'preset-compagnon', label: 'Bulle', shape: 'long', eyes: 'happy', antenna: 'curved', primary: '#30d158', secondary: '#c6efd2' },
+  { id: 'preset-conteur', label: 'Lanterne', shape: 'long', eyes: 'dots', antenna: 'star', primary: '#ffd60a', secondary: '#ffd9a8' },
+  { id: 'preset-coach', label: 'Sprint', shape: 'triangle', eyes: 'dots', antenna: 'classic', primary: '#ff453a', secondary: '#ffb8ad' },
+  { id: 'preset-zen', label: 'Galet', shape: 'round', eyes: 'sleepy', antenna: 'curved', primary: '#64d2ff', secondary: '#cfe9ff' },
+  { id: 'preset-tuteur', label: 'Cube', shape: 'square', eyes: 'happy', antenna: 'ball', primary: '#5e5ce6', secondary: '#c9c8ff' },
+  { id: 'preset-avocat-du-diable', label: 'Pique', shape: 'hexagon', eyes: 'wink', antenna: 'wavy', primary: '#8e8e93', secondary: '#c8c8cf' },
+  { id: 'persona-default', label: 'Orbe', shape: 'round', eyes: 'dots', antenna: 'classic', primary: '#8e8e93', secondary: '#f2f2f4' },
 ];
 
 export const MASCOTS = MASCOT_SPECS.map(({ id, label }) => ({ id, label }));
@@ -61,138 +63,143 @@ function hash(str: string): number {
   return h;
 }
 
-/* Bodies in a 100x100 box; `top` is the y of the head apex, `visor` the face ellipse. */
-const BODIES: Record<Shape, { path: string; top: number; visor: { cy: number; rx: number; ry: number } }> = {
-  egg: {
-    path: 'M50 6C74 6 90 32 90 58C90 80 72 94 50 94S10 80 10 58C10 32 26 6 50 6z',
-    top: 6,
-    visor: { cy: 48, rx: 27, ry: 19 },
+/* Head centred on (50, 42) in a 100x100 box. `top` is the head apex y. */
+const HEADS: Record<Shape, { path: string; top: number; visor: { x: number; y: number; w: number; h: number; r: number } }> = {
+  round: {
+    path: 'M50 12a30 30 0 1 1 0 60 30 30 0 0 1 0-60z',
+    top: 12,
+    visor: { x: 30, y: 30, w: 40, h: 28, r: 14 },
   },
-  squircle: {
-    path: 'M50 8c30 0 42 12 42 42s-12 42-42 42S8 80 8 50 20 8 50 8z',
-    top: 8,
-    visor: { cy: 47, rx: 28, ry: 19 },
+  square: {
+    path: 'M50 14c22 0 29 7 29 28s-7 28-29 28-29-7-29-28 7-28 29-28z',
+    top: 14,
+    visor: { x: 30, y: 31, w: 40, h: 26, r: 12 },
   },
-  pebble: {
-    path: 'M50 16c28 0 46 14 46 34S78 86 50 86 4 70 4 50 22 16 50 16z',
+  triangle: {
+    path: 'M50 12c4 0 7 2 9 6l20 36c3 6-1 14-8 14H29c-7 0-11-8-8-14l20-36c2-4 5-6 9-6z',
+    top: 12,
+    visor: { x: 32, y: 36, w: 36, h: 24, r: 12 },
+  },
+  hexagon: {
+    path: 'M46 13c3-1 5-1 8 0l20 12c3 2 4 4 4 7v20c0 3-1 5-4 7L54 71c-3 1-5 1-8 0L26 59c-3-2-4-4-4-7V32c0-3 1-5 4-7z',
+    top: 13,
+    visor: { x: 30, y: 30, w: 40, h: 26, r: 13 },
+  },
+  long: {
+    path: 'M50 16c24 0 36 12 36 26S74 68 50 68 14 56 14 42s12-26 36-26z',
     top: 16,
-    visor: { cy: 50, rx: 31, ry: 17 },
-  },
-  bell: {
-    path: 'M50 6C76 6 90 30 90 60v18a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V60C10 30 24 6 50 6z',
-    top: 6,
-    visor: { cy: 46, rx: 27, ry: 19 },
-  },
-  pill: {
-    path: 'M50 4a30 30 0 0 1 30 30v32a30 30 0 0 1-60 0V34A30 30 0 0 1 50 4z',
-    top: 4,
-    visor: { cy: 42, rx: 22, ry: 20 },
-  },
-  blob: {
-    path: 'M48 8c26-4 46 18 44 42-2 26-16 46-44 44S4 78 6 50 24 12 48 8z',
-    top: 8,
-    visor: { cy: 48, rx: 28, ry: 19 },
+    visor: { x: 26, y: 30, w: 48, h: 24, r: 12 },
   },
 };
 
-function EyesGroup({ kind, color, cy }: { kind: Eyes; color: string; cy: number }) {
-  const gap = 13;
-  const eye = (cx: number, rx: number, ry: number, rotate = 0) => (
-    <g transform={`rotate(${rotate} ${cx} ${cy})`}>
-      <ellipse cx={cx} cy={cy} rx={rx + 3} ry={ry + 3} fill={color} opacity={0.22} />
-      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={color} />
-      <ellipse cx={cx - rx * 0.35} cy={cy - ry * 0.4} rx={rx * 0.3} ry={ry * 0.22} fill="#fff" opacity={0.9} />
-    </g>
-  );
+function EyesGroup({ kind, cy }: { kind: Eyes; cy: number }) {
+  const gap = 9;
+  const stroke = { stroke: '#fff', strokeWidth: 3, strokeLinecap: 'round' as const, fill: 'none' };
+  const smile = (cx: number) => <path d={`M${cx - 5} ${cy + 1} q5 -7 10 0`} {...stroke} />;
+  const closed = (cx: number) => <path d={`M${cx - 5} ${cy - 1} q5 5 10 0`} {...stroke} />;
+  const dot = (cx: number, r = 3.2) => <ellipse cx={cx} cy={cy} rx={r} ry={r * 1.25} fill="#fff" />;
   switch (kind) {
-    case 'round':
+    case 'happy':
       return (
         <>
-          {eye(50 - gap, 7.5, 7.5)}
-          {eye(50 + gap, 7.5, 7.5)}
+          {smile(50 - gap)}
+          {smile(50 + gap)}
         </>
       );
-    case 'tall':
+    case 'wink':
       return (
         <>
-          {eye(50 - gap, 5.5, 9)}
-          {eye(50 + gap, 5.5, 9)}
-        </>
-      );
-    case 'tilted':
-      return (
-        <>
-          {eye(50 - gap, 6, 8.5, -14)}
-          {eye(50 + gap, 6, 8.5, 14)}
+          {dot(50 - gap)}
+          {smile(50 + gap)}
         </>
       );
     case 'sleepy':
       return (
         <>
-          {eye(50 - gap, 7.5, 5)}
-          {eye(50 + gap, 7.5, 5)}
+          {closed(50 - gap)}
+          {closed(50 + gap)}
         </>
       );
-    case 'oval':
+    case 'curious':
+      return (
+        <>
+          {dot(50 - gap, 2.6)}
+          {dot(50 + gap, 3.8)}
+        </>
+      );
+    case 'dots':
     default:
       return (
         <>
-          {eye(50 - gap, 6.5, 8)}
-          {eye(50 + gap, 6.5, 8)}
+          {dot(50 - gap)}
+          {dot(50 + gap)}
         </>
       );
   }
 }
 
-function Accessory({ kind, primary, secondary, top }: { kind: Accessory; primary: string; secondary: string; top: number }) {
+function Antennae({ kind, top, color }: { kind: Antenna; top: number; color: string }) {
+  const y = top + 6;
+  const line = { stroke: color, strokeWidth: 2.4, strokeLinecap: 'round' as const, fill: 'none' };
+  const tips = (left: [number, number], right: [number, number], tip: (x: number, y: number) => ReactNode) => (
+    <>
+      {tip(left[0], left[1])}
+      {tip(right[0], right[1])}
+    </>
+  );
+  const ball = (x: number, yy: number) => <circle cx={x} cy={yy} r={3.6} fill={color} />;
   switch (kind) {
-    case 'antenna':
+    case 'curved':
       return (
         <>
-          <rect x={48.25} y={top - 9} width={3.5} height={12} rx={1.75} fill={primary} />
-          <circle cx={50} cy={top - 11} r={5} fill={secondary} />
-          <circle cx={48.5} cy={top - 12.5} r={1.6} fill="#fff" opacity={0.8} />
+          <path d={`M40 ${y} C34 ${y - 10} 26 ${y - 12} 22 ${y - 6}`} {...line} />
+          <path d={`M60 ${y} C66 ${y - 10} 74 ${y - 12} 78 ${y - 6}`} {...line} />
+          {tips([22, y - 6], [78, y - 6], ball)}
         </>
       );
-    case 'twin-antenna':
+    case 'ball':
       return (
         <>
-          <path d={`M38 ${top + 3} Q34 ${top - 6} 30 ${top - 9}`} stroke={primary} strokeWidth={3.5} strokeLinecap="round" fill="none" />
-          <path d={`M62 ${top + 3} Q66 ${top - 6} 70 ${top - 9}`} stroke={primary} strokeWidth={3.5} strokeLinecap="round" fill="none" />
-          <circle cx={29} cy={top - 10} r={4.5} fill={secondary} />
-          <circle cx={71} cy={top - 10} r={4.5} fill={secondary} />
+          <path d={`M50 ${y} V${y - 16}`} {...line} />
+          <circle cx={50} cy={y - 20} r={4.5} fill="none" stroke={color} strokeWidth={2.4} />
         </>
       );
-    case 'ears':
+    case 'heart':
       return (
         <>
-          <ellipse cx={30} cy={top + 4} rx={9} ry={12} fill={primary} />
-          <ellipse cx={70} cy={top + 4} rx={9} ry={12} fill={primary} />
-          <ellipse cx={30} cy={top + 5} rx={4.5} ry={7} fill={secondary} />
-          <ellipse cx={70} cy={top + 5} rx={4.5} ry={7} fill={secondary} />
+          <path d={`M42 ${y} L36 ${y - 14}`} {...line} />
+          <path d={`M58 ${y} L64 ${y - 14}`} {...line} />
+          {tips([36, y - 16], [64, y - 16], (x, yy) => (
+            <path d={`M${x} ${yy + 3} l-4 -4 a2.3 2.3 0 0 1 4 -2.5 a2.3 2.3 0 0 1 4 2.5 z`} fill={color} />
+          ))}
         </>
       );
-    case 'fin':
-      return <path d={`M44 ${top + 6} Q50 ${top - 16} 56 ${top + 6} Z`} fill={secondary} />;
-    case 'band':
+    case 'star':
       return (
         <>
-          <path d={`M18 ${top + 26} Q50 ${top - 2} 82 ${top + 26}`} stroke={secondary} strokeWidth={6} strokeLinecap="round" fill="none" />
-          <circle cx={18} cy={top + 30} r={7} fill={secondary} />
-          <circle cx={82} cy={top + 30} r={7} fill={secondary} />
+          <path d={`M42 ${y} L36 ${y - 14}`} {...line} />
+          <path d={`M58 ${y} L64 ${y - 14}`} {...line} />
+          {tips([36, y - 17], [64, y - 17], (x, yy) => (
+            <path d={`M${x} ${yy - 4} l1.3 2.8 3 .3 -2.2 2 .7 3 -2.8 -1.6 -2.8 1.6 .7 -3 -2.2 -2 3 -.3z`} fill={color} />
+          ))}
         </>
       );
-    case 'bow':
+    case 'wavy':
       return (
         <>
-          <ellipse cx={64} cy={top + 1} rx={8} ry={5} fill={primary} transform={`rotate(-20 64 ${top + 1})`} />
-          <ellipse cx={80} cy={top + 3} rx={8} ry={5} fill={primary} transform={`rotate(25 80 ${top + 3})`} />
-          <circle cx={72} cy={top + 3} r={3.5} fill={secondary} />
+          <path d={`M42 ${y} q-5 -4 -1 -8 t-2 -8`} {...line} />
+          <path d={`M58 ${y} q5 -4 1 -8 t2 -8`} {...line} />
         </>
       );
-    case 'none':
+    case 'classic':
     default:
-      return null;
+      return (
+        <>
+          <path d={`M42 ${y} L34 ${y - 14}`} {...line} />
+          <path d={`M58 ${y} L66 ${y - 14}`} {...line} />
+          {tips([33, y - 16], [67, y - 16], ball)}
+        </>
+      );
   }
 }
 
@@ -210,18 +217,16 @@ export function MascotFigure({
   animate?: boolean;
 }) {
   const s = spec(avatar);
-  const { path, top, visor } = BODIES[s.shape];
+  const { path, top, visor } = HEADS[s.shape];
   const seed = hash(s.id);
   const period = 3.8 + (seed % 23) / 10;
   const delay = (seed % 17) / 10;
   const uid = useId();
-  const bodyGrad = `${uid}-b`;
-  const visorGrad = `${uid}-v`;
-  const glossGrad = `${uid}-g`;
+  const eyeCy = visor.y + visor.h / 2 + 1;
 
   return (
     <svg
-      viewBox="-4 -16 108 122"
+      viewBox="-6 -14 112 124"
       width={size}
       height={size}
       style={{ width: size, height: size }}
@@ -231,44 +236,32 @@ export function MascotFigure({
       aria-hidden={alt ? undefined : true}
     >
       <defs>
-        <radialGradient id={bodyGrad} cx="0.35" cy="0.25" r="0.85">
-          <stop offset="0" stopColor={s.secondary} />
-          <stop offset="0.65" stopColor={s.primary} />
-          <stop offset="1" stopColor={s.primary} stopOpacity={0.85} />
+        <radialGradient id={uid} cx="0.35" cy="0.3" r="0.9">
+          <stop offset="0" stopColor="#fff" stopOpacity={0.55} />
+          <stop offset="0.6" stopColor="#fff" stopOpacity={0} />
         </radialGradient>
-        <linearGradient id={visorGrad} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={s.face} />
-          <stop offset="1" stopColor="#000" stopOpacity={0.9} />
-        </linearGradient>
-        <linearGradient id={glossGrad} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity={0.35} />
-          <stop offset="1" stopColor="#fff" stopOpacity={0} />
-        </linearGradient>
       </defs>
       <g className={animate ? 'mascot-float' : undefined} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
-        <ellipse cx={50} cy={99} rx={26} ry={4} fill="#000" opacity={0.22} />
-        {s.accessory !== 'band' && <Accessory kind={s.accessory} primary={s.primary} secondary={s.secondary} top={top} />}
-        <path d={path} fill={`url(#${bodyGrad})`} />
-        {s.accessory === 'band' && <Accessory kind={s.accessory} primary={s.primary} secondary={s.secondary} top={top} />}
-        <path d={path} fill="none" stroke="#fff" strokeOpacity={0.25} strokeWidth={1.5} />
-        <ellipse cx={50} cy={visor.cy} rx={visor.rx} ry={visor.ry} fill={`url(#${visorGrad})`} />
-        <ellipse cx={50} cy={visor.cy} rx={visor.rx} ry={visor.ry} fill="none" stroke="#fff" strokeOpacity={0.12} strokeWidth={1.5} />
+        <ellipse cx={52} cy={102} rx={24} ry={3.5} fill={INK} opacity={0.12} />
+        {/* legs + arms */}
+        <path d="M46 92 L44 101" stroke={INK} strokeWidth={3} strokeLinecap="round" />
+        <path d="M62 92 L66 101" stroke={INK} strokeWidth={3} strokeLinecap="round" />
+        <path d="M70 80 q6 2 8 6" stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none" />
+        <path d="M40 78 q-6 2 -7 7" stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none" />
+        {/* body */}
+        <ellipse cx={55} cy={80} rx={17} ry={14} fill={s.secondary} />
+        <ellipse cx={55} cy={80} rx={17} ry={14} fill={`url(#${uid})`} />
+        <Antennae kind={s.antenna} top={top} color={INK} />
+        {/* head */}
+        <path d={path} fill={s.secondary} />
+        <path d={path} fill={`url(#${uid})`} />
+        <rect x={visor.x} y={visor.y} width={visor.w} height={visor.h} rx={visor.r} fill={INK} />
         <g
           className={animate ? 'mascot-eyes' : undefined}
           style={{ ['--blink-period' as string]: `${period}s`, ['--blink-delay' as string]: `${delay}s` }}
         >
-          <EyesGroup kind={s.eyes} color={s.eye} cy={visor.cy} />
+          <EyesGroup kind={s.eyes} cy={eyeCy} />
         </g>
-        <ellipse
-          cx={50}
-          cy={visor.cy - visor.ry * 0.45}
-          rx={visor.rx * 0.8}
-          ry={visor.ry * 0.5}
-          fill={`url(#${glossGrad})`}
-        />
-        <circle cx={50 - visor.rx - 4} cy={visor.cy + visor.ry * 0.7} r={4} fill="#fff" opacity={0.28} />
-        <circle cx={50 + visor.rx + 4} cy={visor.cy + visor.ry * 0.7} r={4} fill="#fff" opacity={0.28} />
-        <ellipse cx={34} cy={top + 14} rx={9} ry={4} fill="#fff" opacity={0.35} transform={`rotate(-30 34 ${top + 14})`} />
       </g>
     </svg>
   );
