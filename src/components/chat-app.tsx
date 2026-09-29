@@ -27,7 +27,7 @@ import { LibraryPanel } from '@/components/library-panel';
 import { Mascot } from '@/components/mascot';
 import { Markdown } from '@/components/markdown';
 import { MemoryPanel } from '@/components/memory-panel';
-import { PersonaPanel } from '@/components/persona-panel';
+import { BotStudio } from '@/components/bot-studio';
 import { RemindersPanel } from '@/components/reminders-panel';
 import { DEFAULT_VOICE_SETTINGS, VoicePanel, type VoiceSettings } from '@/components/voice-panel';
 import type { Attachment, Conversation, Memory, Message, Persona } from '@/lib/db';
@@ -183,12 +183,16 @@ export function ChatApp() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, liveText]);
 
-  async function newConversation(options?: { personaId?: string | null; parentId?: string | null }) {
+  async function newConversation(options?: {
+    personaId?: string | null;
+    parentId?: string | null;
+    usePersonaModel?: boolean;
+  }) {
     const res = await fetch('/api/conversations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        defaultModel: modelId || undefined,
+        defaultModel: options?.usePersonaModel ? undefined : modelId || undefined,
         personaId: options?.personaId ?? null,
         parentId: options?.parentId ?? null,
         title: options?.parentId ? 'Fil parallèle' : undefined,
@@ -202,7 +206,15 @@ export function ChatApp() {
     setMemories([]);
     setPending([]);
     setSideChats([]);
+    if (created.default_model) setModelId(created.default_model);
     return created;
+  }
+
+  /** Opens a fresh thread with a bot, including its greeting message. */
+  async function startChatWithBot(personaId: string) {
+    const created = await newConversation({ personaId, usePersonaModel: true });
+    await openConversation(created.id);
+    setPanel('none');
   }
 
   async function removeConversation(id: string) {
@@ -478,7 +490,7 @@ export function ChatApp() {
 
           <div className="space-y-0.5 border-t border-[var(--border)] p-2">
             {[
-              { key: 'persona' as const, Icon: IconPersona, label: 'Personas', show: true },
+              { key: 'persona' as const, Icon: IconPersona, label: 'Mes bots', show: true },
               { key: 'memory' as const, Icon: IconMemory, label: 'Mémoire', show: true },
               { key: 'voice' as const, Icon: IconVoice, label: 'Voix', show: capabilities.voice },
               { key: 'reminders' as const, Icon: IconReminder, label: 'Rappels', show: true },
@@ -609,6 +621,33 @@ export function ChatApp() {
                       {suggestion}
                     </button>
                   ))}
+                </div>
+
+                <div className="mt-10">
+                  <div className="mb-3 text-xs uppercase tracking-wide text-[var(--muted)]">
+                    Tes bots
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-4">
+                    {personas.slice(0, 6).map((persona) => (
+                      <button
+                        key={persona.id}
+                        onClick={() => void startChatWithBot(persona.id)}
+                        className="flex w-20 flex-col items-center gap-1.5 text-[11px] text-[var(--muted)] transition hover:text-[var(--foreground)]"
+                      >
+                        <Mascot avatar={persona.avatar} size={52} alt={persona.name} />
+                        <span className="truncate">{persona.name}</span>
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setPanel('persona')}
+                      className="flex w-20 flex-col items-center gap-1.5 text-[11px] text-[var(--muted)] transition hover:text-[var(--foreground)]"
+                    >
+                      <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full border border-dashed border-[var(--border-strong)]">
+                        <IconPlus />
+                      </span>
+                      <span>Créer</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -814,7 +853,11 @@ export function ChatApp() {
                   }
                 }}
                 rows={1}
-                placeholder={streaming ? 'Ajouter un message à la file…' : 'Écris à Hydra…'}
+                placeholder={
+                  streaming
+                    ? 'Ajouter un message à la file…'
+                    : `Écris à ${activePersona?.name ?? 'Hydra'}…`
+                }
                 className="max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] outline-none placeholder:text-[var(--muted)]"
               />
               <button
@@ -852,7 +895,7 @@ export function ChatApp() {
         />
       )}
       {panel === 'persona' && (
-        <PersonaPanel
+        <BotStudio
           personas={personas}
           models={availableModels}
           voices={voices}
@@ -860,6 +903,7 @@ export function ChatApp() {
           onClose={() => setPanel('none')}
           onSelect={(id) => void setConversationPersona(id)}
           onChange={refreshPersonas}
+          onStartChat={(id) => startChatWithBot(id)}
         />
       )}
       {panel === 'voice' && (

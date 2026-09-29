@@ -1,5 +1,10 @@
 import { nanoid } from 'nanoid';
-import { createConversation, listConversations } from '@/lib/db';
+import {
+  createConversation,
+  getPersona,
+  insertMessage,
+  listConversations,
+} from '@/lib/db';
 import { defaultModelId } from '@/lib/models';
 
 export const dynamic = 'force-dynamic';
@@ -17,14 +22,24 @@ export async function POST(request: Request) {
     defaultModel?: string;
   };
 
+  const persona = body.personaId ? getPersona(body.personaId) : undefined;
   const conversation = createConversation({
     id: nanoid(),
-    title: body.title,
+    title: body.title ?? (persona ? `Chat avec ${persona.name}` : undefined),
     persona: body.persona,
     personaId: body.personaId ?? null,
     parentId: body.parentId ?? null,
-    defaultModel: body.defaultModel ?? defaultModelId(),
+    defaultModel: body.defaultModel ?? persona?.preferred_model ?? defaultModelId(),
   });
+
+  if (persona?.greeting?.trim() && !body.parentId) {
+    insertMessage({
+      id: nanoid(),
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: persona.greeting.trim(),
+    });
+  }
 
   return Response.json({ conversation }, { status: 201 });
 }

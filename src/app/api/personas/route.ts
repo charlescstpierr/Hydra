@@ -13,6 +13,8 @@ export async function POST(request: Request) {
     avatar?: string;
     tagline?: string;
     instructions?: string;
+    greeting?: string | null;
+    tone?: string | null;
     preferredModel?: string | null;
     voice?: string | null;
     voiceSpeed?: number | null;
@@ -29,6 +31,8 @@ export async function POST(request: Request) {
     avatar: body.avatar?.trim() || 'persona-default',
     tagline: body.tagline?.trim() ?? '',
     instructions: body.instructions.trim(),
+    greeting: body.greeting?.trim() || null,
+    tone: body.tone?.trim() || null,
     preferredModel: body.preferredModel ?? null,
     voice: body.voice ?? null,
     voiceSpeed: body.voiceSpeed ?? null,

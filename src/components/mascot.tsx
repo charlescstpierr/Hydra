@@ -32,6 +32,20 @@ export function Mascot({
   className?: string;
   alt?: string;
 }) {
+  const shared = `shrink-0 self-start rounded-full border border-[var(--border)] object-cover ${className}`;
+
+  if (avatar?.startsWith('upload:')) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/api/files/${avatar.slice('upload:'.length)}`}
+        alt={alt}
+        style={{ width: size, height: size }}
+        className={shared}
+      />
+    );
+  }
+
   return (
     <Image
       src={mascotSrc(avatar)}
@@ -39,7 +53,7 @@ export function Mascot({
       width={size}
       height={size}
       style={{ width: size, height: size }}
-      className={`shrink-0 self-start rounded-full border border-[var(--border)] object-cover ${className}`}
+      className={shared}
     />
   );
 }

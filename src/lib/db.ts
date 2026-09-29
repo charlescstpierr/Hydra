@@ -37,6 +37,10 @@ export interface Persona {
   avatar: string | null;
   tagline: string;
   instructions: string;
+  /** First assistant message sent when a conversation with this bot starts. */
+  greeting: string | null;
+  /** Comma-separated tone traits picked in the bot studio. */
+  tone: string | null;
   preferred_model: string | null;
   voice: string | null;
   voice_speed: number | null;
@@ -97,6 +101,8 @@ export function getDb(): Database.Database {
       avatar TEXT,
       tagline TEXT NOT NULL DEFAULT '',
       instructions TEXT NOT NULL,
+      greeting TEXT,
+      tone TEXT,
       preferred_model TEXT,
       voice TEXT,
       voice_speed REAL,
@@ -181,6 +187,8 @@ export function getDb(): Database.Database {
 function migrate(database: Database.Database): void {
   const additions: [table: string, column: string, definition: string][] = [
     ['personas', 'avatar', 'TEXT'],
+    ['personas', 'greeting', 'TEXT'],
+    ['personas', 'tone', 'TEXT'],
     ['personas', 'voice', 'TEXT'],
     ['personas', 'voice_speed', 'REAL'],
     ['personas', 'voice_language', 'TEXT'],
@@ -406,7 +414,13 @@ export function setSetting(key: string, value: string): void {
 
 const PRESET_PERSONAS: Omit<
   Persona,
-  'created_at' | 'is_preset' | 'voice_speed' | 'voice_language' | 'emoji'
+  | 'created_at'
+  | 'is_preset'
+  | 'voice_speed'
+  | 'voice_language'
+  | 'emoji'
+  | 'greeting'
+  | 'tone'
 >[] = [
   {
     id: 'preset-hydra',
@@ -539,6 +553,8 @@ export function createPersona(input: {
   avatar?: string | null;
   tagline?: string;
   instructions: string;
+  greeting?: string | null;
+  tone?: string | null;
   preferredModel?: string | null;
   voice?: string | null;
   voiceSpeed?: number | null;
@@ -546,8 +562,8 @@ export function createPersona(input: {
 }): Persona {
   getDb()
     .prepare(
-      `INSERT INTO personas (id, name, avatar, tagline, instructions, preferred_model, voice, voice_speed, voice_language, is_preset, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO personas (id, name, avatar, tagline, instructions, greeting, tone, preferred_model, voice, voice_speed, voice_language, is_preset, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
     )
     .run(
       input.id,
@@ -555,6 +571,8 @@ export function createPersona(input: {
       input.avatar ?? null,
       input.tagline ?? '',
       input.instructions,
+      input.greeting ?? null,
+      input.tone ?? null,
       input.preferredModel ?? null,
       input.voice ?? null,
       input.voiceSpeed ?? null,
@@ -573,6 +591,8 @@ export function updatePersona(
       | 'avatar'
       | 'tagline'
       | 'instructions'
+      | 'greeting'
+      | 'tone'
       | 'preferred_model'
       | 'voice'
       | 'voice_speed'

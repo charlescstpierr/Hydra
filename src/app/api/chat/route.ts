@@ -1,6 +1,11 @@
 import { isStepCount, streamText } from 'ai';
 import { nanoid } from 'nanoid';
-import { buildInstructions, buildModelMessages, DEFAULT_PERSONA } from '@/lib/context';
+import {
+  buildInstructions,
+  buildModelMessages,
+  DEFAULT_PERSONA,
+  personaPrompt,
+} from '@/lib/context';
 import {
   attachToMessage,
   deleteMessagesFrom,
@@ -72,7 +77,8 @@ export async function POST(request: Request) {
   const persona = conversation.persona_id ? getPersona(conversation.persona_id) : undefined;
   const instructions = buildInstructions({
     conversation,
-    personaInstructions: conversation.persona.trim() || persona?.instructions || DEFAULT_PERSONA,
+    personaInstructions:
+      conversation.persona.trim() || (persona ? personaPrompt(persona) : DEFAULT_PERSONA),
     memories: listMemories(memoryRootId(conversation.id)),
     history,
     activeModelId: body.modelId,

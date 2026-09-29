@@ -1,5 +1,5 @@
 import type { ModelMessage, UserContent } from 'ai';
-import type { Attachment, Conversation, Memory, Message, Reminder } from './db';
+import type { Attachment, Conversation, Memory, Message, Persona, Reminder } from './db';
 import { readAttachment } from './files';
 import { modelLabel } from './models';
 
@@ -16,6 +16,19 @@ Règles de cohérence, non négociables :
 - N'invente pas de souvenirs : ce que tu sais de l'utilisateur se limite à la mémoire persistante et à la conversation.`;
 
 export const DEFAULT_PERSONA = `Tu es Hydra, un assistant direct, concret et sans flagornerie. Tu réponds dans la langue de l'utilisateur.`;
+
+/** Turns a bot definition (identity, pitch, tone traits) into a system prompt. */
+export function personaPrompt(persona: Persona): string {
+  const parts = [`Tu es ${persona.name}.`];
+  if (persona.tagline.trim()) parts.push(persona.tagline.trim());
+  if (persona.instructions.trim()) parts.push(persona.instructions.trim());
+  const tone = (persona.tone ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (tone.length > 0) parts.push(`Ton : ${tone.join(', ')}.`);
+  return parts.join('\n');
+}
 
 export function buildInstructions(input: {
   conversation: Conversation;

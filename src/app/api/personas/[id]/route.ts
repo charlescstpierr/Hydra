@@ -12,6 +12,8 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     avatar?: string;
     tagline?: string;
     instructions?: string;
+    greeting?: string | null;
+    tone?: string | null;
     preferredModel?: string | null;
     voice?: string | null;
     voiceSpeed?: number | null;
@@ -23,6 +25,8 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     ...(body.avatar !== undefined ? { avatar: body.avatar } : {}),
     ...(body.tagline !== undefined ? { tagline: body.tagline } : {}),
     ...(body.instructions !== undefined ? { instructions: body.instructions } : {}),
+    ...(body.greeting !== undefined ? { greeting: body.greeting } : {}),
+    ...(body.tone !== undefined ? { tone: body.tone } : {}),
     ...(body.preferredModel !== undefined ? { preferred_model: body.preferredModel } : {}),
     ...(body.voice !== undefined ? { voice: body.voice } : {}),
     ...(body.voiceSpeed !== undefined ? { voice_speed: body.voiceSpeed } : {}),
