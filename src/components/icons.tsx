@@ -29,6 +29,41 @@ export const IconPersona = (props: IconProps) => (
   </Svg>
 );
 
+export const IconChat = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3-.5L4 20l1.5-4A7.3 7.3 0 0 1 4.5 12 7.5 7.5 0 0 1 12 4.5h.5A7.5 7.5 0 0 1 20 11.5Z" />
+    <path d="M8 12h.01M12 12h.01M16 12h.01" />
+  </Svg>
+);
+
+export const IconEdit = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m4 16.5-.7 3.7 3.7-.7L18.5 8a2.1 2.1 0 0 0-3-3z" />
+    <path d="m14 6 3 3" />
+  </Svg>
+);
+
+export const IconCompose = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m4 16.5-.7 3.7 3.7-.7L18.5 8a2.1 2.1 0 0 0-3-3z" />
+    <path d="m14 6 3 3M12 20h8" />
+  </Svg>
+);
+
+export const IconSearch = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="10.8" cy="10.8" r="6.8" />
+    <path d="m16 16 4.5 4.5" />
+  </Svg>
+);
+
+export const IconInfo = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Svg>
+);
+
 export const IconDocument = (props: IconProps) => (
   <Svg {...props}>
     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />

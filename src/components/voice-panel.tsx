@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import type { VoiceInfo } from '@/lib/voice';
-import { IconClose, IconVoice } from '@/components/icons';
+import { IconVoice } from '@/components/icons';
+import { SidePanel } from '@/components/ui';
 
 export interface VoiceSettings {
   voice: string;
@@ -69,13 +70,7 @@ export function VoicePanel({
   }
 
   return (
-    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
-        <span className="flex items-center gap-2 text-sm font-semibold"><IconVoice />Voix</span>
-        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
-          <IconClose />
-        </button>
-      </div>
+    <SidePanel title="Voix" icon={<IconVoice />} onClose={onClose}>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-3 text-xs">
         <p className="text-[var(--muted)]">
@@ -168,7 +163,10 @@ export function VoicePanel({
               placeholder="Langue (fr)"
               className="field w-full"
             />
-            <input ref={fileRef} type="file" accept="audio/*" className="w-full text-[11px]" />
+            <label className="block space-y-1">
+              <span className="text-[var(--muted)]">Extrait audio</span>
+              <input ref={fileRef} type="file" accept="audio/*" className="w-full text-[11px]" />
+            </label>
             <button
               onClick={() => void clone()}
               disabled={busy}
@@ -181,6 +179,6 @@ export function VoicePanel({
 
         {message && <p className="text-[var(--muted)]">{message}</p>}
       </div>
-    </aside>
+    </SidePanel>
   );
 }

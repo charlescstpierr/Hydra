@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import type { Memory } from '@/lib/db';
-import { IconClose, IconMemory, IconTrash } from '@/components/icons';
+import { IconMemory, IconTrash } from '@/components/icons';
+import { EmptyState, SidePanel } from '@/components/ui';
 
 export function MemoryPanel({
   conversationId,
@@ -30,24 +31,17 @@ export function MemoryPanel({
   }
 
   async function remove(id: string) {
+    if (!window.confirm('Supprimer ce souvenir ?')) return;
     await fetch(`/api/memories?id=${id}`, { method: 'DELETE' });
     await onChange();
   }
 
   return (
-    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
-        <span className="flex items-center gap-2 text-sm font-semibold"><IconMemory />Mémoire</span>
-        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
-          <IconClose />
-        </button>
-      </div>
+    <SidePanel title="Mémoire" icon={<IconMemory />} onClose={onClose}>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
         {memories.length === 0 && (
-          <p className="text-xs text-[var(--muted)]">
-            Hydra retient automatiquement tes préférences et décisions au fil des échanges.
-          </p>
+          <EmptyState title="Aucun souvenir" description="Hydra pourra retenir tes préférences et décisions au fil des échanges." />
         )}
         {memories.map((memory) => (
           <div
@@ -61,8 +55,9 @@ export function MemoryPanel({
               <p className="flex-1">{memory.content}</p>
               <button
                 onClick={() => void remove(memory.id)}
-                className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--danger)]"
+                className="btn btn-icon text-[var(--muted)] opacity-70 transition group-hover:opacity-100 hover:text-[var(--danger)]"
                 title="Supprimer"
+                aria-label="Supprimer ce souvenir"
               >
                 <IconTrash className="h-3.5 w-3.5" />
               </button>
@@ -98,6 +93,6 @@ export function MemoryPanel({
           </button>
         </div>
       </div>
-    </aside>
+    </SidePanel>
   );
 }
