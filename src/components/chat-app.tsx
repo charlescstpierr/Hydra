@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IconArrowUp,
+  IconBack,
   IconBranch,
+  IconClock,
   IconClip,
   IconCopy,
   IconGlobe,
@@ -50,11 +52,11 @@ const EMPTY_CAPS: Capabilities = {
 const VOICE_SETTINGS_KEY = 'hydra.voice';
 
 const TOOL_LABELS: Record<string, string> = {
-  web_search: '🌐 recherche web',
-  create_image: '🎨 génération d’image',
-  create_artifact: '📄 création d’artefact',
-  create_podcast: '🎧 production audio',
-  set_reminder: '⏰ rappel programmé',
+  web_search: 'recherche web',
+  create_image: 'génération d’image',
+  create_artifact: 'création d’artefact',
+  create_podcast: 'production audio',
+  set_reminder: 'rappel programmé',
 };
 
 export function ChatApp() {
@@ -452,7 +454,7 @@ export function ChatApp() {
                 key={item.id}
                 className={`group flex items-center rounded-[10px] ${
                   conversation?.id === item.id ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]'
-                } ${item.parent_id ? 'ml-3' : ''}`}
+                } ${item.parent_id ? 'ml-4 border-l border-[var(--border-strong)]' : ''}`}
               >
                 <button
                   onClick={() => void openConversation(item.id)}
@@ -461,7 +463,6 @@ export function ChatApp() {
                   }`}
                   title={item.title}
                 >
-                  {item.parent_id && <span className="mr-1 text-[var(--muted)]">↳</span>}
                   {item.title}
                 </button>
                 <button
@@ -577,12 +578,12 @@ export function ChatApp() {
           <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
             {conversation?.parent_id && (
               <button onClick={() => void openConversation(conversation.parent_id!)} className="chip">
-                ↰ Fil principal
+                <IconBack className="h-3.5 w-3.5" /> Fil principal
               </button>
             )}
             {sideChats.map((chat) => (
               <button key={chat.id} onClick={() => void openConversation(chat.id)} className="chip">
-                ↳ {chat.title}
+                <IconBranch className="h-3.5 w-3.5" /> {chat.title}
               </button>
             ))}
           </div>
@@ -593,9 +594,7 @@ export function ChatApp() {
             {messages.length === 0 && !streaming && (
               <div className="fade-in mt-[12vh] text-center">
                 <Mascot avatar="preset-hydra" size={72} className="mx-auto mb-5" alt="Hydra" />
-                <h1 className="bg-gradient-to-r from-white to-[#a9a9c7] bg-clip-text text-3xl font-semibold tracking-tight text-transparent">
-                  Bonjour.
-                </h1>
+                <h1 className="text-3xl font-semibold tracking-tight">Bonjour.</h1>
                 <p className="mx-auto mt-3 max-w-md text-sm text-[var(--muted)]">
                   Un seul fil, plusieurs têtes. Change de modèle en pleine conversation : la
                   mémoire, le persona et le ton suivent.
@@ -616,11 +615,9 @@ export function ChatApp() {
 
             {messages.map((message) =>
               message.role === 'user' ? (
-                <article key={message.id} className="fade-in mb-6 flex justify-end">
-                  <div className="max-w-[85%]">
-                    <div className="rounded-2xl rounded-br-md bg-[var(--surface-3)] px-4 py-2.5 text-[15px] whitespace-pre-wrap">
-                      {message.content}
-                    </div>
+                <article key={message.id} className="fade-in mb-3 flex justify-end">
+                  <div className="max-w-[78%]">
+                    <div className="bubble bubble-me whitespace-pre-wrap">{message.content}</div>
                     <div className="mt-2 flex flex-wrap justify-end gap-2">
                       {attachmentsFor(message.id).map((attachment) =>
                         attachment.media_type.startsWith('image/') ? (
@@ -647,21 +644,23 @@ export function ChatApp() {
                   </div>
                 </article>
               ) : (
-                <article key={message.id} className="fade-in group mb-7 flex gap-3">
+                <article key={message.id} className="fade-in group mb-3 flex items-end gap-2">
                   <Mascot
                     avatar={activePersona?.avatar ?? 'preset-hydra'}
-                    size={30}
-                    className="mt-0.5"
+                    size={28}
+                    className="self-end"
                     alt="Hydra"
                   />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 max-w-[82%]">
                     {message.reasoning && (
                       <details className="card mb-3 p-3 text-xs text-[var(--muted)]">
                         <summary className="cursor-pointer select-none">Raisonnement</summary>
                         <pre className="mt-2 whitespace-pre-wrap">{message.reasoning}</pre>
                       </details>
                     )}
-                    <Markdown>{message.content}</Markdown>
+                    <div className="bubble bubble-them">
+                      <Markdown>{message.content}</Markdown>
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {attachmentsFor(message.id).map((attachment) =>
                         attachment.media_type.startsWith('image/') ? (
@@ -710,14 +709,14 @@ export function ChatApp() {
             )}
 
             {(liveReasoning || liveText || streaming) && (
-              <article className="fade-in mb-7 flex gap-3">
+              <article className="fade-in mb-3 flex items-end gap-2">
                 <Mascot
                   avatar={activePersona?.avatar ?? 'preset-hydra'}
-                  size={30}
-                  className="mt-0.5"
+                  size={28}
+                  className="self-end"
                   alt="Hydra"
                 />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 max-w-[82%]">
                   {toolEvents.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-2">
                       {toolEvents.map((name, index) => (
@@ -733,15 +732,17 @@ export function ChatApp() {
                       <pre className="mt-2 whitespace-pre-wrap">{liveReasoning}</pre>
                     </details>
                   )}
-                  {liveText ? (
-                    <Markdown>{liveText}</Markdown>
-                  ) : (
-                    <span className="dots">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  )}
+                  <div className="bubble bubble-them">
+                    {liveText ? (
+                      <Markdown>{liveText}</Markdown>
+                    ) : (
+                      <span className="dots">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    )}
+                  </div>
                 </div>
               </article>
             )}
@@ -761,7 +762,7 @@ export function ChatApp() {
               <div className="mb-2 flex flex-wrap gap-2">
                 {queue.map((text, index) => (
                   <span key={index} className="chip max-w-full truncate">
-                    ⏳ {text}
+                    <IconClock className="h-3.5 w-3.5" /> {text}
                   </span>
                 ))}
               </div>

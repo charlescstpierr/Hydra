@@ -29,6 +29,34 @@ export const IconPersona = (props: IconProps) => (
   </Svg>
 );
 
+export const IconDocument = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5" />
+  </Svg>
+);
+
+export const IconTable = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 10h18M9 10v10" />
+  </Svg>
+);
+
+export const IconClock = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Svg>
+);
+
+export const IconBack = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+  </Svg>
+);
+
 export const IconMemory = (props: IconProps) => (
   <Svg {...props}>
     <path d="M12 5a3 3 0 0 0-6 .6A3 3 0 0 0 4 8.5a3 3 0 0 0 1 2.2A3 3 0 0 0 4 13a3 3 0 0 0 2.5 3A3 3 0 0 0 12 17z" />

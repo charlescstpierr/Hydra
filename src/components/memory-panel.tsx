@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Memory } from '@/lib/db';
-import { IconClose, IconMemory } from '@/components/icons';
+import { IconClose, IconMemory, IconTrash } from '@/components/icons';
 
 export function MemoryPanel({
   conversationId,
@@ -62,8 +62,9 @@ export function MemoryPanel({
               <button
                 onClick={() => void remove(memory.id)}
                 className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--danger)]"
+                title="Supprimer"
               >
-                🗑
+                <IconTrash className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>

@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { AttachmentKind } from '@/lib/db';
-import { IconClose, IconLibrary } from '@/components/icons';
+import {
+  IconClip,
+  IconClose,
+  IconDocument,
+  IconImage,
+  IconLibrary,
+  IconSpeaker,
+  IconTable,
+} from '@/components/icons';
 
 interface LibraryItem {
   id: string;
@@ -15,12 +23,12 @@ interface LibraryItem {
   url: string;
 }
 
-const ICONS: Record<AttachmentKind, string> = {
-  image: '🖼',
-  document: '📄',
-  spreadsheet: '📊',
-  audio: '🎧',
-  file: '📎',
+const ICONS: Record<AttachmentKind, (props: { className?: string }) => React.ReactElement> = {
+  image: IconImage,
+  document: IconDocument,
+  spreadsheet: IconTable,
+  audio: IconSpeaker,
+  file: IconClip,
 };
 
 type Filter = 'all' | 'generated' | 'upload';
@@ -73,8 +81,12 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
             rel="noreferrer"
             className="card block p-2.5"
           >
-            <div className="truncate">
-              {ICONS[item.kind]} {item.name}
+            <div className="flex items-center gap-2 truncate">
+              {(() => {
+                const Icon = ICONS[item.kind];
+                return <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--muted)]" />;
+              })()}
+              <span className="truncate">{item.name}</span>
             </div>
             <div className="text-[11px] text-[var(--muted)]">
               {Math.max(1, Math.round(item.size / 1024))} Ko ·{' '}
