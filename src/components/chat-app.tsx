@@ -28,6 +28,8 @@ import { Mascot } from '@/components/mascot';
 import { Markdown } from '@/components/markdown';
 import { MemoryPanel } from '@/components/memory-panel';
 import { BotStudio } from '@/components/bot-studio';
+import { BotComputer } from '@/components/bot-computer';
+import { BotRail } from '@/components/bot-rail';
 import { RemindersPanel } from '@/components/reminders-panel';
 import { DEFAULT_VOICE_SETTINGS, VoicePanel, type VoiceSettings } from '@/components/voice-panel';
 import type { Attachment, Conversation, Memory, Message, Persona } from '@/lib/db';
@@ -87,8 +89,9 @@ export function ChatApp() {
   const [useWeb, setUseWeb] = useState(true);
   const [useImages, setUseImages] = useState(true);
   const [panel, setPanel] = useState<
-    'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library'
+    'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library' | 'computer'
   >('none');
+  const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recording, setRecording] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -144,6 +147,7 @@ export function ChatApp() {
       sideChats: Conversation[];
     };
     setConversation(data.conversation);
+    setSelectedBotId(data.conversation.persona_id);
     setMessages(data.messages);
     setMemories(data.memories);
     setAttachments(data.attachments);
@@ -218,6 +222,7 @@ export function ChatApp() {
     const { conversation: created } = (await res.json()) as { conversation: Conversation };
     await refreshConversations();
     setConversation(created);
+    setSelectedBotId(created.persona_id);
     setMessages([]);
     setAttachments([]);
     setMemories([]);
@@ -231,7 +236,17 @@ export function ChatApp() {
   async function startChatWithBot(personaId: string) {
     const created = await newConversation({ personaId, usePersonaModel: true });
     await openConversation(created.id);
-    setPanel('none');
+    setSelectedBotId(personaId);
+    if (panel !== 'computer') setPanel('none');
+  }
+
+  function selectBot(id: string) {
+    if (selectedBotId === id && panel === 'computer') {
+      setPanel('none');
+      return;
+    }
+    setSelectedBotId(id);
+    setPanel('computer');
   }
 
   async function removeConversation(id: string) {
@@ -241,6 +256,7 @@ export function ChatApp() {
       if (list.length > 0) await openConversation(list[0].id);
       else {
         setConversation(null);
+        setSelectedBotId(null);
         setMessages([]);
       }
     }
@@ -256,6 +272,7 @@ export function ChatApp() {
     });
     const { conversation: updated } = (await res.json()) as { conversation: Conversation };
     setConversation(updated);
+    setSelectedBotId(updated.persona_id);
     if (persona?.preferred_model) setModelId(persona.preferred_model);
   }
 
@@ -452,6 +469,11 @@ export function ChatApp() {
     'Compare deux options pour moi',
     'Résume ce document (joins un fichier)',
   ];
+  const selectedBot = personas.find((persona) => persona.id === selectedBotId) ?? null;
+  const busyPersonaIds = new Set(
+    streaming && conversation?.persona_id ? [conversation.persona_id] : [],
+  );
+  const streamingConversationId = streaming ? conversation?.id ?? null : null;
 
   return (
     <div className="relative flex h-full min-h-0">
@@ -541,6 +563,15 @@ export function ChatApp() {
       )}
 
       <main id="chat-main" className="flex min-w-0 flex-1 flex-col">
+        <BotRail
+          personas={personas}
+          activePersonaId={conversation?.persona_id ?? null}
+          selectedBotId={selectedBotId}
+          busyPersonaIds={busyPersonaIds}
+          onSelectBot={selectBot}
+          onOpenStudio={() => setPanel('persona')}
+          variant="horizontal"
+        />
         <header className="glass flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2.5">
           {!sidebarOpen && (
             <button onClick={() => setSidebarOpen(true)} className="btn btn-icon" title="Afficher le panneau">
@@ -665,7 +696,7 @@ export function ChatApp() {
                     {personas.slice(0, 6).map((persona) => (
                       <button
                         key={persona.id}
-                        onClick={() => void startChatWithBot(persona.id)}
+                        onClick={() => selectBot(persona.id)}
                         className="flex w-20 flex-col items-center gap-1.5 text-[11px] text-[var(--muted)] transition hover:text-[var(--foreground)]"
                       >
                         <Mascot avatar={persona.avatar} size={52} alt={persona.name} />
@@ -935,7 +966,7 @@ export function ChatApp() {
           personas={personas}
           models={availableModels}
           voices={voices}
-          activeId={conversation?.persona_id ?? null}
+          activeId={selectedBotId ?? conversation?.persona_id ?? null}
           onClose={() => setPanel('none')}
           onSelect={(id) => void setConversationPersona(id)}
           onChange={refreshPersonas}
@@ -958,6 +989,30 @@ export function ChatApp() {
         <RemindersPanel conversationId={conversation?.id ?? null} onClose={() => setPanel('none')} />
       )}
       {panel === 'library' && <LibraryPanel onClose={() => setPanel('none')} />}
+      {panel === 'computer' && selectedBot && (
+        <BotComputer
+          persona={selectedBot}
+          conversations={conversations.filter((item) => item.persona_id === selectedBot.id)}
+          currentConversationId={conversation?.id ?? null}
+          streamingConversationId={streamingConversationId}
+          onOpenConversation={(id) => void openConversation(id)}
+          onNewConversation={(personaId) => void startChatWithBot(personaId)}
+          onEditBot={(personaId) => {
+            setSelectedBotId(personaId);
+            setPanel('persona');
+          }}
+          onClose={() => setPanel('none')}
+        />
+      )}
+      <BotRail
+        personas={personas}
+        activePersonaId={conversation?.persona_id ?? null}
+        selectedBotId={selectedBotId}
+        busyPersonaIds={busyPersonaIds}
+        onSelectBot={selectBot}
+        onOpenStudio={() => setPanel('persona')}
+        variant="vertical"
+      />
     </div>
   );
 }

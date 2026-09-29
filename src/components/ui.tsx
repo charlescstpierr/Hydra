@@ -58,11 +58,13 @@ export function SidePanel({
   icon,
   onClose,
   children,
+  className = '',
 }: {
   title: string;
   icon: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +81,7 @@ export function SidePanel({
   return (
     <aside
       aria-labelledby={titleId}
-      className="glass fixed inset-y-0 right-0 z-40 flex w-full max-w-[320px] shrink-0 flex-col border-l border-[var(--border)] shadow-2xl md:relative md:z-auto md:shadow-none"
+      className={`glass fixed inset-y-0 right-0 z-40 flex w-full max-w-[320px] shrink-0 flex-col border-l border-[var(--border)] shadow-2xl md:relative md:z-auto md:shadow-none ${className}`}
     >
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
         <h2 id={titleId} className="flex items-center gap-2 text-sm font-semibold">
