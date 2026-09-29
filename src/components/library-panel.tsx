@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { AttachmentKind } from '@/lib/db';
+import { IconClose, IconLibrary } from '@/components/icons';
 
 interface LibraryItem {
   id: string;
@@ -42,11 +43,11 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const visible = items.filter((item) => filter === 'all' || item.origin === filter);
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <span className="text-sm font-semibold">📚 Bibliothèque</span>
-        <button onClick={onClose} className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
-          ✕
+    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <span className="flex items-center gap-2 text-sm font-semibold"><IconLibrary />Bibliothèque</span>
+        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
+          <IconClose />
         </button>
       </div>
 
@@ -55,9 +56,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
           <button
             key={value}
             onClick={() => setFilter(value)}
-            className={`rounded-lg px-2 py-1 ${
-              filter === value ? 'bg-[var(--accent)] text-white' : 'hover:bg-[var(--surface-2)]'
-            }`}
+            className={`chip ${filter === value ? 'chip-active' : ''}`}
           >
             {value === 'all' ? 'Tout' : value === 'generated' ? 'Artefacts' : 'Uploads'}
           </button>
@@ -72,7 +71,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="block rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2 hover:border-[var(--accent)]"
+            className="card block p-2.5"
           >
             <div className="truncate">
               {ICONS[item.kind]} {item.name}

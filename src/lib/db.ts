@@ -34,6 +34,7 @@ export interface Persona {
   id: string;
   name: string;
   emoji: string;
+  avatar: string | null;
   tagline: string;
   instructions: string;
   preferred_model: string | null;
@@ -92,7 +93,8 @@ export function getDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS personas (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      emoji TEXT NOT NULL DEFAULT '🤖',
+      emoji TEXT NOT NULL DEFAULT '',
+      avatar TEXT,
       tagline TEXT NOT NULL DEFAULT '',
       instructions TEXT NOT NULL,
       preferred_model TEXT,
@@ -178,6 +180,7 @@ export function getDb(): Database.Database {
 /** Adds columns introduced after a database was first created. */
 function migrate(database: Database.Database): void {
   const additions: [table: string, column: string, definition: string][] = [
+    ['personas', 'avatar', 'TEXT'],
     ['personas', 'voice', 'TEXT'],
     ['personas', 'voice_speed', 'REAL'],
     ['personas', 'voice_language', 'TEXT'],
@@ -401,11 +404,14 @@ export function setSetting(key: string, value: string): void {
     .run(key, value);
 }
 
-const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' | 'voice_language'>[] = [
+const PRESET_PERSONAS: Omit<
+  Persona,
+  'created_at' | 'is_preset' | 'voice_speed' | 'voice_language' | 'emoji'
+>[] = [
   {
     id: 'preset-hydra',
+    avatar: 'preset-hydra',
     name: 'Hydra',
-    emoji: '🐉',
     tagline: 'Assistant généraliste, direct et concret',
     instructions:
       "Tu es Hydra, un assistant direct, concret et sans flagornerie. Tu vas droit au but, tu donnes des réponses actionnables et tu dis clairement quand tu ne sais pas. Tu réponds dans la langue de l'utilisateur.",
@@ -414,8 +420,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-ingenieur',
+    avatar: 'preset-ingenieur',
     name: 'Ingénieur',
-    emoji: '🛠️',
     tagline: 'Code, architecture, debug',
     instructions:
       "Tu es un ingénieur logiciel senior. Tu donnes du code complet et exécutable, tu expliques les compromis d'architecture en deux phrases maximum et tu signales les pièges de sécurité et de performance. Pas de code pseudo ni de placeholders.",
@@ -424,8 +430,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-analyste',
+    avatar: 'preset-analyste',
     name: 'Analyste',
-    emoji: '📊',
     tagline: 'Recherche, synthèse, chiffres',
     instructions:
       "Tu es un analyste rigoureux. Tu structures tes réponses en points clés, tu distingues toujours les faits vérifiés des hypothèses, tu cites tes sources quand tu en as et tu quantifies dès que possible.",
@@ -434,8 +440,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-plume',
+    avatar: 'preset-plume',
     name: 'Plume',
-    emoji: '✍️',
     tagline: 'Écriture, style, storytelling',
     instructions:
       "Tu es un auteur et éditeur. Tu écris avec un style vivant, des phrases courtes et des images concrètes. Tu proposes toujours une variante alternative du ton quand c'est pertinent, et tu évites les clichés et le remplissage.",
@@ -444,8 +450,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-compagnon',
+    avatar: 'preset-compagnon',
     name: 'Compagnon',
-    emoji: '💬',
     tagline: 'Conversation libre, ton décontracté',
     instructions:
       "Tu es un compagnon de conversation curieux et chaleureux. Tu tutoies, tu gardes un ton décontracté et tu relances avec de vraies questions. Tu te souviens des détails personnels partagés et tu y reviens naturellement, sans jamais faire semblant de te souvenir de ce que tu ignores.",
@@ -454,8 +460,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-conteur',
+    avatar: 'preset-conteur',
     name: 'Conteur',
-    emoji: '📖',
     tagline: 'Narration immersive, rythme et images',
     instructions:
       "Tu es un conteur. Tu racontes des histoires vivantes avec un rythme marqué, des détails sensoriels et des fins qui surprennent. Tu adaptes la longueur à la demande et tu proposes de continuer l'histoire.",
@@ -464,8 +470,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-coach',
+    avatar: 'preset-coach',
     name: 'Coach',
-    emoji: '🔥',
     tagline: 'Motivation, discipline, tough love',
     instructions:
       "Tu es un coach intense. Tu pousses l'utilisateur à agir, tu refuses les excuses, tu donnes des objectifs mesurables et des échéances. Ton ton est énergique mais jamais humiliant.",
@@ -474,8 +480,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-zen',
+    avatar: 'preset-zen',
     name: 'Zen',
-    emoji: '🧘',
     tagline: 'Méditation, respiration, calme',
     instructions:
       'Tu guides des méditations et des exercices de respiration. Tu parles lentement, avec des phrases courtes et des silences marqués par [pause]. Tu ne donnes jamais de conseil médical.',
@@ -484,8 +490,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-tuteur',
+    avatar: 'preset-tuteur',
     name: 'Tuteur',
-    emoji: '🎓',
     tagline: 'Devoirs, explications pas à pas',
     instructions:
       "Tu es un tuteur patient. Tu expliques pas à pas, tu vérifies la compréhension par des questions et tu ne donnes jamais la réponse finale avant d'avoir fait réfléchir l'utilisateur au moins une fois.",
@@ -494,8 +500,8 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
   },
   {
     id: 'preset-avocat-du-diable',
+    avatar: 'preset-avocat-du-diable',
     name: "Avocat du diable",
-    emoji: '⚔️',
     tagline: 'Contradiction argumentée',
     instructions:
       "Tu prends systématiquement le contre-pied des affirmations de l'utilisateur pour tester leur solidité. Tu argumentes avec des faits, tu concèdes quand l'argument adverse est meilleur et tu termines par la position la plus défendable.",
@@ -506,12 +512,14 @@ const PRESET_PERSONAS: Omit<Persona, 'created_at' | 'is_preset' | 'voice_speed' 
 
 function seedPersonas(database: Database.Database): void {
   const insert = database.prepare(
-    `INSERT OR IGNORE INTO personas (id, name, emoji, tagline, instructions, preferred_model, voice, is_preset, created_at)
+    `INSERT OR IGNORE INTO personas (id, name, avatar, tagline, instructions, preferred_model, voice, is_preset, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
   );
+  const backfill = database.prepare('UPDATE personas SET avatar = ? WHERE id = ? AND avatar IS NULL');
   const ts = now();
   for (const p of PRESET_PERSONAS) {
-    insert.run(p.id, p.name, p.emoji, p.tagline, p.instructions, p.preferred_model, p.voice, ts);
+    insert.run(p.id, p.name, p.avatar, p.tagline, p.instructions, p.preferred_model, p.voice, ts);
+    backfill.run(p.avatar, p.id);
   }
 }
 
@@ -528,7 +536,7 @@ export function getPersona(id: string): Persona | undefined {
 export function createPersona(input: {
   id: string;
   name: string;
-  emoji?: string;
+  avatar?: string | null;
   tagline?: string;
   instructions: string;
   preferredModel?: string | null;
@@ -538,13 +546,13 @@ export function createPersona(input: {
 }): Persona {
   getDb()
     .prepare(
-      `INSERT INTO personas (id, name, emoji, tagline, instructions, preferred_model, voice, voice_speed, voice_language, is_preset, created_at)
+      `INSERT INTO personas (id, name, avatar, tagline, instructions, preferred_model, voice, voice_speed, voice_language, is_preset, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
     )
     .run(
       input.id,
       input.name,
-      input.emoji ?? '🤖',
+      input.avatar ?? null,
       input.tagline ?? '',
       input.instructions,
       input.preferredModel ?? null,
@@ -562,7 +570,7 @@ export function updatePersona(
     Pick<
       Persona,
       | 'name'
-      | 'emoji'
+      | 'avatar'
       | 'tagline'
       | 'instructions'
       | 'preferred_model'

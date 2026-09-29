@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Reminder } from '@/lib/db';
+import { IconClose, IconReminder } from '@/components/icons';
 
 const formatter = new Intl.DateTimeFormat('fr-CA', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -60,11 +61,11 @@ export function RemindersPanel({
   }
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <span className="text-sm font-semibold">⏰ Rappels</span>
-        <button onClick={onClose} className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
-          ✕
+    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <span className="flex items-center gap-2 text-sm font-semibold"><IconReminder />Rappels</span>
+        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
+          <IconClose />
         </button>
       </div>
 
@@ -80,9 +81,7 @@ export function RemindersPanel({
           return (
             <div
               key={reminder.id}
-              className={`rounded-lg border p-2 ${
-                overdue ? 'border-[var(--accent)]' : 'border-[var(--border)]'
-              } bg-[var(--surface-2)]`}
+              className={`card p-2.5 ${overdue ? 'border-[rgba(124,92,255,0.6)]' : ''}`}
             >
               <div className={reminder.status === 'done' ? 'line-through opacity-60' : ''}>
                 {reminder.title}
@@ -108,7 +107,7 @@ export function RemindersPanel({
                     Annuler
                   </button>
                 )}
-                <button onClick={() => void remove(reminder.id)} className="hover:text-red-400">
+                <button onClick={() => void remove(reminder.id)} className="hover:text-[var(--danger)]">
                   Supprimer
                 </button>
               </div>
@@ -122,17 +121,17 @@ export function RemindersPanel({
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Nouveau rappel"
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+          className="field w-full"
         />
         <input
           type="datetime-local"
           value={dueAt}
           onChange={(event) => setDueAt(event.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+          className="field w-full"
         />
         <button
           onClick={() => void add()}
-          className="w-full rounded-lg bg-[var(--accent)] px-3 py-1.5 font-medium text-white"
+          className="btn btn-primary w-full"
         >
           Ajouter
         </button>

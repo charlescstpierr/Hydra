@@ -1,7 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  IconArrowUp,
+  IconBranch,
+  IconClip,
+  IconCopy,
+  IconGlobe,
+  IconImage,
+  IconLibrary,
+  IconMemory,
+  IconMic,
+  IconPersona,
+  IconPlus,
+  IconRefresh,
+  IconReminder,
+  IconSidebar,
+  IconSpeaker,
+  IconStop,
+  IconTrash,
+  IconVoice,
+} from '@/components/icons';
 import { LibraryPanel } from '@/components/library-panel';
+import { Mascot } from '@/components/mascot';
 import { Markdown } from '@/components/markdown';
 import { MemoryPanel } from '@/components/memory-panel';
 import { PersonaPanel } from '@/components/persona-panel';
@@ -387,109 +408,112 @@ export function ChatApp() {
   const attachmentsFor = (messageId: string) =>
     attachments.filter((a) => a.message_id === messageId);
 
+  const suggestions = [
+    'Explique-moi un sujet complexe simplement',
+    'Aide-moi à écrire un texte',
+    'Compare deux options pour moi',
+    'Résume ce document (joins un fichier)',
+  ];
+
   return (
     <div className="flex h-full">
       {sidebarOpen && (
-        <aside className="flex w-72 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex items-center justify-between px-4 py-4">
-            <span className="text-lg font-semibold tracking-tight">🐍 Hydra</span>
+        <aside className="glass flex w-[264px] shrink-0 flex-col border-r border-[var(--border)]">
+          <div className="flex items-center gap-2 px-4 py-4">
+            <Mascot avatar="preset-hydra" size={26} alt="Hydra" />
+            <span className="text-[15px] font-semibold tracking-tight">Hydra</span>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]"
+              className="btn btn-icon ml-auto text-[var(--muted)]"
+              title="Masquer le panneau"
             >
-              ✕
+              <IconSidebar />
             </button>
           </div>
-          <button
-            onClick={() => void newConversation({ personaId: conversation?.persona_id ?? null })}
-            className="mx-3 mb-3 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            + Nouvelle conversation
-          </button>
-          <div className="flex-1 overflow-y-auto px-2">
+
+          <div className="px-3 pb-3">
+            <button
+              onClick={() => void newConversation({ personaId: conversation?.persona_id ?? null })}
+              className="btn btn-primary w-full"
+            >
+              <IconPlus />
+              Nouvelle conversation
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-0.5 overflow-y-auto px-2">
+            {conversations.length === 0 && (
+              <p className="px-3 py-6 text-center text-xs text-[var(--muted)]">
+                Aucune conversation.
+              </p>
+            )}
             {conversations.map((item) => (
               <div
                 key={item.id}
-                className={`group flex items-center gap-1 rounded-lg px-2 ${
-                  item.parent_id ? 'ml-4 border-l border-[var(--border)]' : ''
-                } ${
+                className={`group flex items-center rounded-[10px] ${
                   conversation?.id === item.id ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]'
-                }`}
+                } ${item.parent_id ? 'ml-3' : ''}`}
               >
                 <button
                   onClick={() => void openConversation(item.id)}
-                  className="flex-1 truncate py-2 text-left text-sm"
+                  className={`flex-1 truncate px-3 py-2 text-left text-[13px] ${
+                    conversation?.id === item.id ? '' : 'text-[var(--muted)]'
+                  }`}
                   title={item.title}
                 >
-                  {item.parent_id ? '↳ ' : ''}
+                  {item.parent_id && <span className="mr-1 text-[var(--muted)]">↳</span>}
                   {item.title}
                 </button>
                 <button
                   onClick={() => void removeConversation(item.id)}
-                  className="invisible px-1 text-xs text-[var(--muted)] group-hover:visible hover:text-red-400"
+                  className="mr-1 rounded-md px-1.5 py-1 text-[var(--muted)] opacity-0 transition hover:text-[var(--danger)] group-hover:opacity-100"
                   title="Supprimer"
                 >
-                  🗑
+                  <IconTrash className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
           </div>
-          <div className="space-y-1 border-t border-[var(--border)] p-3 text-sm">
-            <button
-              onClick={() => setPanel(panel === 'persona' ? 'none' : 'persona')}
-              className="w-full rounded-lg px-2 py-2 text-left hover:bg-[var(--surface-2)]"
-            >
-              🎭 Personas
-            </button>
-            <button
-              onClick={() => setPanel(panel === 'memory' ? 'none' : 'memory')}
-              className="w-full rounded-lg px-2 py-2 text-left hover:bg-[var(--surface-2)]"
-            >
-              🧠 Mémoire
-            </button>
-            {capabilities.voice && (
-              <button
-                onClick={() => setPanel(panel === 'voice' ? 'none' : 'voice')}
-                className="w-full rounded-lg px-2 py-2 text-left hover:bg-[var(--surface-2)]"
-              >
-                🔊 Voix
-              </button>
-            )}
-            <button
-              onClick={() => setPanel(panel === 'reminders' ? 'none' : 'reminders')}
-              className="w-full rounded-lg px-2 py-2 text-left hover:bg-[var(--surface-2)]"
-            >
-              ⏰ Rappels
-            </button>
-            <button
-              onClick={() => setPanel(panel === 'library' ? 'none' : 'library')}
-              className="w-full rounded-lg px-2 py-2 text-left hover:bg-[var(--surface-2)]"
-            >
-              📚 Bibliothèque
-            </button>
+
+          <div className="space-y-0.5 border-t border-[var(--border)] p-2">
+            {[
+              { key: 'persona' as const, Icon: IconPersona, label: 'Personas', show: true },
+              { key: 'memory' as const, Icon: IconMemory, label: 'Mémoire', show: true },
+              { key: 'voice' as const, Icon: IconVoice, label: 'Voix', show: capabilities.voice },
+              { key: 'reminders' as const, Icon: IconReminder, label: 'Rappels', show: true },
+              { key: 'library' as const, Icon: IconLibrary, label: 'Bibliothèque', show: true },
+            ]
+              .filter((entry) => entry.show)
+              .map((entry) => (
+                <button
+                  key={entry.key}
+                  onClick={() => setPanel(panel === entry.key ? 'none' : entry.key)}
+                  className={`nav-item ${panel === entry.key ? 'nav-item-active' : ''}`}
+                >
+                  <entry.Icon />
+                  {entry.label}
+                </button>
+              ))}
           </div>
         </aside>
       )}
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <header className="glass flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2.5">
           {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-md px-2 py-1 text-sm hover:bg-[var(--surface-2)]"
-            >
-              ☰
+            <button onClick={() => setSidebarOpen(true)} className="btn btn-icon" title="Afficher le panneau">
+              <IconSidebar />
             </button>
           )}
           <select
             value={modelId}
             onChange={(event) => setModelId(event.target.value)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-sm"
+            className="field max-w-[220px] truncate"
           >
             {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
             {availableModels.map((model) => (
               <option key={model.id} value={model.id}>
-                {model.label} — {model.hint}
+                {model.label}
               </option>
             ))}
           </select>
@@ -498,34 +522,34 @@ export function ChatApp() {
             value={conversation?.persona_id ?? ''}
             onChange={(event) => void setConversationPersona(event.target.value || null)}
             disabled={!conversation}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-sm disabled:opacity-50"
+            className="field max-w-[180px] truncate"
           >
             <option value="">Persona par défaut</option>
             {personas.map((persona) => (
               <option key={persona.id} value={persona.id}>
-                {persona.emoji} {persona.name}
+                {persona.name}
               </option>
             ))}
           </select>
 
-          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
-            <input
-              type="checkbox"
-              checked={useWeb && capabilities.webSearch}
-              disabled={!capabilities.webSearch}
-              onChange={(event) => setUseWeb(event.target.checked)}
-            />
-            🌐 Web
-          </label>
-          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
-            <input
-              type="checkbox"
-              checked={useImages && capabilities.imageGeneration}
-              disabled={!capabilities.imageGeneration}
-              onChange={(event) => setUseImages(event.target.checked)}
-            />
-            🎨 Images
-          </label>
+          {capabilities.webSearch && (
+            <button
+              onClick={() => setUseWeb(!useWeb)}
+              className={`chip ${useWeb ? 'chip-active' : ''}`}
+              title="Recherche web"
+            >
+              <IconGlobe className="h-3.5 w-3.5" /> Web
+            </button>
+          )}
+          {capabilities.imageGeneration && (
+            <button
+              onClick={() => setUseImages(!useImages)}
+              className={`chip ${useImages ? 'chip-active' : ''}`}
+              title="Génération d’images"
+            >
+              <IconImage className="h-3.5 w-3.5" /> Images
+            </button>
+          )}
 
           <button
             onClick={() =>
@@ -535,33 +559,29 @@ export function ChatApp() {
               })
             }
             disabled={!conversation}
-            className="rounded-lg border border-[var(--border)] px-2 py-1.5 text-xs hover:bg-[var(--surface-2)] disabled:opacity-40"
+            className="chip"
             title="Ouvrir un fil parallèle qui partage la mémoire de cette conversation"
           >
-            ⤳ Fil parallèle
+            <IconBranch className="h-3.5 w-3.5" /> Fil parallèle
           </button>
 
-          <div className="ml-auto truncate text-xs text-[var(--muted)]">
-            {activePersona ? `${activePersona.emoji} ${activePersona.name}` : 'Hydra'}
-          </div>
+          {activePersona && (
+            <div className="ml-auto flex items-center gap-2 text-xs text-[var(--muted)]">
+              <Mascot avatar={activePersona.avatar} size={24} alt={activePersona.name} />
+              <span className="truncate">{activePersona.name}</span>
+            </div>
+          )}
         </header>
 
         {(sideChats.length > 0 || conversation?.parent_id) && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
             {conversation?.parent_id && (
-              <button
-                onClick={() => void openConversation(conversation.parent_id!)}
-                className="rounded-lg border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)]"
-              >
-                ↰ Revenir au fil principal
+              <button onClick={() => void openConversation(conversation.parent_id!)} className="chip">
+                ↰ Fil principal
               </button>
             )}
             {sideChats.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => void openConversation(chat.id)}
-                className="rounded-lg border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)]"
-              >
+              <button key={chat.id} onClick={() => void openConversation(chat.id)} className="chip">
                 ↳ {chat.title}
               </button>
             ))}
@@ -569,97 +589,165 @@ export function ChatApp() {
         )}
 
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 py-6">
+          <div className="mx-auto w-full max-w-3xl px-5 py-8">
             {messages.length === 0 && !streaming && (
-              <div className="mt-24 text-center text-[var(--muted)]">
-                <p className="text-2xl font-semibold text-[var(--foreground)]">Hydra</p>
-                <p className="mt-2 text-sm">
-                  Un seul fil, plusieurs têtes : change de modèle en pleine conversation, la
-                  mémoire et le persona suivent.
+              <div className="fade-in mt-[12vh] text-center">
+                <Mascot avatar="preset-hydra" size={72} className="mx-auto mb-5" alt="Hydra" />
+                <h1 className="bg-gradient-to-r from-white to-[#a9a9c7] bg-clip-text text-3xl font-semibold tracking-tight text-transparent">
+                  Bonjour.
+                </h1>
+                <p className="mx-auto mt-3 max-w-md text-sm text-[var(--muted)]">
+                  Un seul fil, plusieurs têtes. Change de modèle en pleine conversation : la
+                  mémoire, le persona et le ton suivent.
                 </p>
+                <div className="mt-7 flex flex-wrap justify-center gap-2">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => setDraft(suggestion)}
+                      className="card px-3 py-2 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {messages.map((message) => (
-              <article key={message.id} className="mb-6">
-                <div className="mb-1 flex items-center gap-2 text-xs text-[var(--muted)]">
-                  <span>{message.role === 'user' ? 'Toi' : 'Hydra'}</span>
-                  {message.model_id && <span>· {message.model_id}</span>}
-                  {message.role === 'assistant' && capabilities.voice && (
-                    <button
-                      onClick={() => void speak(message.content)}
-                      className="hover:text-[var(--foreground)]"
-                      title="Lire à voix haute"
-                    >
-                      🔊
-                    </button>
-                  )}
-                </div>
-                {message.reasoning && (
-                  <details className="mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-xs text-[var(--muted)]">
-                    <summary className="cursor-pointer">Raisonnement</summary>
-                    <pre className="mt-2 whitespace-pre-wrap">{message.reasoning}</pre>
-                  </details>
-                )}
-                <div
-                  className={
-                    message.role === 'user'
-                      ? 'rounded-2xl bg-[var(--surface-2)] px-4 py-3'
-                      : ''
-                  }
-                >
-                  <Markdown>{message.content}</Markdown>
-                  <div className="flex flex-wrap gap-2">
-                    {attachmentsFor(message.id).map((attachment) =>
-                      attachment.media_type.startsWith('image/') ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={attachment.id}
-                          src={`/api/files/${attachment.id}`}
-                          alt={attachment.name}
-                          className="mt-2 max-h-56 rounded-xl border border-[var(--border)]"
-                        />
-                      ) : (
-                        <a
-                          key={attachment.id}
-                          href={`/api/files/${attachment.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 rounded-lg border border-[var(--border)] px-2 py-1 text-xs"
-                        >
-                          📎 {attachment.name}
-                        </a>
-                      ),
-                    )}
+            {messages.map((message) =>
+              message.role === 'user' ? (
+                <article key={message.id} className="fade-in mb-6 flex justify-end">
+                  <div className="max-w-[85%]">
+                    <div className="rounded-2xl rounded-br-md bg-[var(--surface-3)] px-4 py-2.5 text-[15px] whitespace-pre-wrap">
+                      {message.content}
+                    </div>
+                    <div className="mt-2 flex flex-wrap justify-end gap-2">
+                      {attachmentsFor(message.id).map((attachment) =>
+                        attachment.media_type.startsWith('image/') ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={attachment.id}
+                            src={`/api/files/${attachment.id}`}
+                            alt={attachment.name}
+                            className="max-h-56 rounded-xl border border-[var(--border)]"
+                          />
+                        ) : (
+                          <a
+                            key={attachment.id}
+                            href={`/api/files/${attachment.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="chip"
+                          >
+                            <IconClip className="h-3.5 w-3.5" /> {attachment.name}
+                          </a>
+                        ),
+                      )}
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              ) : (
+                <article key={message.id} className="fade-in group mb-7 flex gap-3">
+                  <Mascot
+                    avatar={activePersona?.avatar ?? 'preset-hydra'}
+                    size={30}
+                    className="mt-0.5"
+                    alt="Hydra"
+                  />
+                  <div className="min-w-0 flex-1">
+                    {message.reasoning && (
+                      <details className="card mb-3 p-3 text-xs text-[var(--muted)]">
+                        <summary className="cursor-pointer select-none">Raisonnement</summary>
+                        <pre className="mt-2 whitespace-pre-wrap">{message.reasoning}</pre>
+                      </details>
+                    )}
+                    <Markdown>{message.content}</Markdown>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {attachmentsFor(message.id).map((attachment) =>
+                        attachment.media_type.startsWith('image/') ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={attachment.id}
+                            src={`/api/files/${attachment.id}`}
+                            alt={attachment.name}
+                            className="max-h-72 rounded-xl border border-[var(--border)]"
+                          />
+                        ) : (
+                          <a
+                            key={attachment.id}
+                            href={`/api/files/${attachment.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="chip"
+                          >
+                            <IconClip className="h-3.5 w-3.5" /> {attachment.name}
+                          </a>
+                        ),
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-1 text-[11px] text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                      <button
+                        onClick={() => void navigator.clipboard.writeText(message.content)}
+                        className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
+                        title="Copier"
+                      >
+                        <IconCopy className="h-3.5 w-3.5" /> Copier
+                      </button>
+                      {capabilities.voice && (
+                        <button
+                          onClick={() => void speak(message.content)}
+                          className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
+                          title="Lire à voix haute"
+                        >
+                          <IconSpeaker className="h-3.5 w-3.5" /> Écouter
+                        </button>
+                      )}
+                      {message.model_id && <span className="ml-1">{message.model_id}</span>}
+                    </div>
+                  </div>
+                </article>
+              ),
+            )}
 
             {(liveReasoning || liveText || streaming) && (
-              <article className="mb-6">
-                <div className="mb-1 text-xs text-[var(--muted)]">Hydra · {modelId}</div>
-                {toolEvents.length > 0 && (
-                  <div className="mb-2 text-xs text-[var(--muted)]">
-                    {toolEvents.map((name, index) => (
-                      <span key={index} className="mr-2">
-                        {TOOL_LABELS[name] ?? name}…
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {liveReasoning && (
-                  <details open className="mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-xs text-[var(--muted)]">
-                    <summary className="cursor-pointer">Raisonnement en cours</summary>
-                    <pre className="mt-2 whitespace-pre-wrap">{liveReasoning}</pre>
-                  </details>
-                )}
-                {liveText ? <Markdown>{liveText}</Markdown> : <span className="text-[var(--muted)]">…</span>}
+              <article className="fade-in mb-7 flex gap-3">
+                <Mascot
+                  avatar={activePersona?.avatar ?? 'preset-hydra'}
+                  size={30}
+                  className="mt-0.5"
+                  alt="Hydra"
+                />
+                <div className="min-w-0 flex-1">
+                  {toolEvents.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {toolEvents.map((name, index) => (
+                        <span key={index} className="chip">
+                          {TOOL_LABELS[name] ?? name}…
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {liveReasoning && (
+                    <details open className="card mb-3 p-3 text-xs text-[var(--muted)]">
+                      <summary className="cursor-pointer select-none">Raisonnement…</summary>
+                      <pre className="mt-2 whitespace-pre-wrap">{liveReasoning}</pre>
+                    </details>
+                  )}
+                  {liveText ? (
+                    <Markdown>{liveText}</Markdown>
+                  ) : (
+                    <span className="dots">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  )}
+                </div>
               </article>
             )}
 
             {error && (
-              <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <div className="mb-4 rounded-xl border border-[rgba(255,107,107,0.4)] bg-[rgba(255,107,107,0.08)] px-3 py-2 text-sm text-[var(--danger)]">
                 {error}
               </div>
             )}
@@ -667,30 +755,27 @@ export function ChatApp() {
           </div>
         </div>
 
-        <div className="border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <div className="px-4 pb-5">
           <div className="mx-auto w-full max-w-3xl">
             {queue.length > 0 && (
-              <div className="mb-2 space-y-1 text-xs text-[var(--muted)]">
+              <div className="mb-2 flex flex-wrap gap-2">
                 {queue.map((text, index) => (
-                  <div key={index} className="truncate rounded-lg border border-dashed border-[var(--border)] px-2 py-1">
-                    ⏳ en file : {text}
-                  </div>
+                  <span key={index} className="chip max-w-full truncate">
+                    ⏳ {text}
+                  </span>
                 ))}
               </div>
             )}
             {pending.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {pending.map((attachment) => (
-                  <span
-                    key={attachment.id}
-                    className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs"
-                  >
-                    📎 {attachment.name}
+                  <span key={attachment.id} className="chip">
+                    <IconClip className="h-3.5 w-3.5" /> {attachment.name}
                   </span>
                 ))}
               </div>
             )}
-            <div className="flex items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
+            <div className="composer flex items-end gap-1.5 p-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -704,18 +789,18 @@ export function ChatApp() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded-lg px-2 py-2 text-sm hover:bg-[var(--surface)]"
+                className="btn btn-icon text-[var(--muted)]"
                 title="Joindre un fichier"
               >
-                📎
+                <IconClip />
               </button>
               {capabilities.voice && (
                 <button
                   onClick={() => void toggleRecording()}
-                  className={`rounded-lg px-2 py-2 text-sm hover:bg-[var(--surface)] ${recording ? 'text-red-400' : ''}`}
-                  title="Dicter"
+                  className={`btn btn-icon ${recording ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}`}
+                  title={recording ? 'Arrêter la dictée' : 'Dicter'}
                 >
-                  🎙
+                  {recording ? <IconStop /> : <IconMic />}
                 </button>
               )}
               <textarea
@@ -728,25 +813,29 @@ export function ChatApp() {
                   }
                 }}
                 rows={1}
-                placeholder="Écris à Hydra…"
-                className="max-h-40 min-h-10 flex-1 resize-y bg-transparent px-2 py-2 text-sm outline-none"
+                placeholder={streaming ? 'Ajouter un message à la file…' : 'Écris à Hydra…'}
+                className="max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] outline-none placeholder:text-[var(--muted)]"
               />
               <button
                 onClick={regenerate}
                 disabled={streaming || messages.length === 0}
-                className="rounded-lg px-2 py-2 text-sm hover:bg-[var(--surface)] disabled:opacity-40"
+                className="btn btn-icon text-[var(--muted)]"
                 title="Régénérer la dernière réponse"
               >
-                ⟳
+                <IconRefresh />
               </button>
               <button
                 onClick={() => send(draft)}
                 disabled={!draft.trim()}
-                className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+                className="btn btn-primary btn-icon"
+                title={streaming ? 'Mettre en file' : 'Envoyer'}
               >
-                {streaming ? 'Mettre en file' : 'Envoyer'}
+                <IconArrowUp />
               </button>
             </div>
+            <p className="mt-2 text-center text-[11px] text-[var(--muted)]">
+              Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne
+            </p>
           </div>
         </div>
       </main>
@@ -785,10 +874,7 @@ export function ChatApp() {
         />
       )}
       {panel === 'reminders' && (
-        <RemindersPanel
-          conversationId={conversation?.id ?? null}
-          onClose={() => setPanel('none')}
-        />
+        <RemindersPanel conversationId={conversation?.id ?? null} onClose={() => setPanel('none')} />
       )}
       {panel === 'library' && <LibraryPanel onClose={() => setPanel('none')} />}
     </div>

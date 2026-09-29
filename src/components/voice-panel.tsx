@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { VoiceInfo } from '@/lib/voice';
+import { IconClose, IconVoice } from '@/components/icons';
 
 export interface VoiceSettings {
   voice: string;
@@ -68,11 +69,11 @@ export function VoicePanel({
   }
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <span className="text-sm font-semibold">🔊 Voix</span>
-        <button onClick={onClose} className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
-          ✕
+    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <span className="flex items-center gap-2 text-sm font-semibold"><IconVoice />Voix</span>
+        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
+          <IconClose />
         </button>
       </div>
 
@@ -87,7 +88,7 @@ export function VoicePanel({
           <select
             value={settings.voice}
             onChange={(event) => onSettings({ ...settings, voice: event.target.value })}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+            className="field w-full"
           >
             <option value="">Voix du persona</option>
             {voices.map((voice) => (
@@ -124,7 +125,7 @@ export function VoicePanel({
             value={settings.language}
             onChange={(event) => onSettings({ ...settings, language: event.target.value })}
             placeholder="auto, fr, en, es…"
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+            className="field w-full"
           />
         </label>
 
@@ -143,7 +144,7 @@ export function VoicePanel({
               "Salut, c'est Hydra. [pause] Voici un aperçu de cette voix, avec le réglage de vitesse actuel.",
             )
           }
-          className="w-full rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)]"
+          className="w-full btn btn-outline hover:bg-[var(--surface-2)]"
         >
           ▶ Écouter un aperçu
         </button>
@@ -159,19 +160,19 @@ export function VoicePanel({
               value={cloneName}
               onChange={(event) => setCloneName(event.target.value)}
               placeholder="Nom de la voix"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+              className="field w-full"
             />
             <input
               value={cloneLanguage}
               onChange={(event) => setCloneLanguage(event.target.value)}
               placeholder="Langue (fr)"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1"
+              className="field w-full"
             />
             <input ref={fileRef} type="file" accept="audio/*" className="w-full text-[11px]" />
             <button
               onClick={() => void clone()}
               disabled={busy}
-              className="w-full rounded-lg bg-[var(--accent)] px-3 py-1.5 font-medium text-white disabled:opacity-50"
+              className="btn btn-primary w-full"
             >
               {busy ? 'Clonage…' : 'Créer la voix'}
             </button>

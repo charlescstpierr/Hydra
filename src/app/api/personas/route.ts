@@ -10,7 +10,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     name?: string;
-    emoji?: string;
+    avatar?: string;
     tagline?: string;
     instructions?: string;
     preferredModel?: string | null;
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const persona = createPersona({
     id: nanoid(),
     name: body.name.trim(),
-    emoji: body.emoji?.trim() || '🤖',
+    avatar: body.avatar?.trim() || 'persona-default',
     tagline: body.tagline?.trim() ?? '',
     instructions: body.instructions.trim(),
     preferredModel: body.preferredModel ?? null,

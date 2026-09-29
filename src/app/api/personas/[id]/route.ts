@@ -9,7 +9,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
 
   const body = (await request.json().catch(() => ({}))) as {
     name?: string;
-    emoji?: string;
+    avatar?: string;
     tagline?: string;
     instructions?: string;
     preferredModel?: string | null;
@@ -20,7 +20,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
 
   updatePersona(id, {
     ...(body.name !== undefined ? { name: body.name } : {}),
-    ...(body.emoji !== undefined ? { emoji: body.emoji } : {}),
+    ...(body.avatar !== undefined ? { avatar: body.avatar } : {}),
     ...(body.tagline !== undefined ? { tagline: body.tagline } : {}),
     ...(body.instructions !== undefined ? { instructions: body.instructions } : {}),
     ...(body.preferredModel !== undefined ? { preferred_model: body.preferredModel } : {}),

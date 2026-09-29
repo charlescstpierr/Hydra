@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Memory } from '@/lib/db';
+import { IconClose, IconMemory } from '@/components/icons';
 
 export function MemoryPanel({
   conversationId,
@@ -34,11 +35,11 @@ export function MemoryPanel({
   }
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <span className="text-sm font-semibold">🧠 Mémoire</span>
-        <button onClick={onClose} className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]">
-          ✕
+    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
+        <span className="flex items-center gap-2 text-sm font-semibold"><IconMemory />Mémoire</span>
+        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
+          <IconClose />
         </button>
       </div>
 
@@ -51,7 +52,7 @@ export function MemoryPanel({
         {memories.map((memory) => (
           <div
             key={memory.id}
-            className="group rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2 text-xs"
+            className="card group p-2.5 text-xs"
           >
             <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
               {memory.scope === 'global' ? 'globale' : 'conversation'}
@@ -60,7 +61,7 @@ export function MemoryPanel({
               <p className="flex-1">{memory.content}</p>
               <button
                 onClick={() => void remove(memory.id)}
-                className="invisible text-[var(--muted)] group-hover:visible hover:text-red-400"
+                className="text-[var(--muted)] opacity-0 transition group-hover:opacity-100 hover:text-[var(--danger)]"
               >
                 🗑
               </button>
@@ -75,13 +76,13 @@ export function MemoryPanel({
           onChange={(event) => setContent(event.target.value)}
           rows={3}
           placeholder="Ajouter un souvenir…"
-          className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2 text-xs outline-none"
+          className="field w-full resize-none"
         />
         <div className="flex items-center gap-2">
           <select
             value={scope}
             onChange={(event) => setScope(event.target.value as 'global' | 'conversation')}
-            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs"
+            className="field flex-1 text-xs"
           >
             <option value="global">Globale</option>
             <option value="conversation" disabled={!conversationId}>
@@ -90,7 +91,7 @@ export function MemoryPanel({
           </select>
           <button
             onClick={() => void add()}
-            className="rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white"
+            className="btn btn-primary"
           >
             Ajouter
           </button>
