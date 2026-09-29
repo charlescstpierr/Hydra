@@ -359,10 +359,43 @@ input[type='range'] {
   }
 }
 
+/* --- mascots --- */
+
+.mascot-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-blink var(--blink-period, 4.6s) ease-in-out infinite;
+  animation-delay: var(--blink-delay, 0s);
+}
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.08);
+  }
+}
+.mascot-float {
+  animation: mascot-float 5s ease-in-out infinite;
+}
+@keyframes mascot-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-in,
   .dots span,
-  .skeleton {
+  .skeleton,
+  .mascot-eyes,
+  .mascot-float {
     animation: none;
   }
 }
