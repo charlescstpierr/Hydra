@@ -29,6 +29,7 @@ import { Markdown } from '@/components/markdown';
 import { MemoryPanel } from '@/components/memory-panel';
 import { BotStudio } from '@/components/bot-studio';
 import { BotComputer } from '@/components/bot-computer';
+import { BotGallery } from '@/components/bot-gallery';
 import { BotRail } from '@/components/bot-rail';
 import { RemindersPanel } from '@/components/reminders-panel';
 import { DEFAULT_VOICE_SETTINGS, VoicePanel, type VoiceSettings } from '@/components/voice-panel';
@@ -233,11 +234,16 @@ export function ChatApp() {
   }
 
   /** Opens a fresh thread with a bot, including its greeting message. */
-  async function startChatWithBot(personaId: string) {
+  async function startChatWithBot(personaId: string, options?: { keepPanel?: boolean }) {
     const created = await newConversation({ personaId, usePersonaModel: true });
     await openConversation(created.id);
     setSelectedBotId(personaId);
-    if (panel !== 'computer') setPanel('none');
+    if (!options?.keepPanel && panel !== 'computer') setPanel('none');
+  }
+
+  async function startVoiceWithBot(personaId: string) {
+    await startChatWithBot(personaId, { keepPanel: true });
+    setPanel('voice');
   }
 
   function selectBot(id: string) {
@@ -690,29 +696,15 @@ export function ChatApp() {
 
                 <div className="mt-10">
                   <div className="mb-3 text-xs uppercase tracking-wide text-[var(--muted)]">
-                    Tes bots
+                    Tes compagnons
                   </div>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    {personas.slice(0, 6).map((persona) => (
-                      <button
-                        key={persona.id}
-                        onClick={() => selectBot(persona.id)}
-                        className="flex w-20 flex-col items-center gap-1.5 text-[11px] text-[var(--muted)] transition hover:text-[var(--foreground)]"
-                      >
-                        <Mascot avatar={persona.avatar} size={52} alt={persona.name} />
-                        <span className="truncate">{persona.name}</span>
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setPanel('persona')}
-                      className="flex w-20 flex-col items-center gap-1.5 text-[11px] text-[var(--muted)] transition hover:text-[var(--foreground)]"
-                    >
-                      <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full border border-dashed border-[var(--border-strong)]">
-                        <IconPlus />
-                      </span>
-                      <span>Créer</span>
-                    </button>
-                  </div>
+                  <BotGallery
+                    personas={personas}
+                    onChat={(id) => void startChatWithBot(id)}
+                    onVoice={(id) => void startVoiceWithBot(id)}
+                    onCreate={() => setPanel('persona')}
+                    onOpenComputer={selectBot}
+                  />
                 </div>
               </div>
             )}
@@ -997,6 +989,7 @@ export function ChatApp() {
           streamingConversationId={streamingConversationId}
           onOpenConversation={(id) => void openConversation(id)}
           onNewConversation={(personaId) => void startChatWithBot(personaId)}
+          onVoice={(personaId) => void startVoiceWithBot(personaId)}
           onEditBot={(personaId) => {
             setSelectedBotId(personaId);
             setPanel('persona');

@@ -42,7 +42,7 @@ export function BotRail({
       className={
         horizontal
           ? 'flex h-16 min-w-0 items-center gap-2 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface)] px-3 md:hidden'
-          : 'hidden w-[72px] shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)] md:flex'
+          : 'hidden w-[88px] shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)] md:flex'
       }
     >
       <div
@@ -54,10 +54,10 @@ export function BotRail({
       >
         {!horizontal && (
           <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
-            Bots
+            Compagnons
           </div>
         )}
-        <div className={horizontal ? 'flex items-center gap-2' : 'flex w-full flex-col items-center gap-2'}>
+        <div className={horizontal ? 'flex items-center gap-2' : 'flex w-full flex-col items-center gap-3'}>
           {personas.map((persona, index) => {
             const palette = mascotPalette(persona.avatar);
             const selected = highlightedId === persona.id;
@@ -81,21 +81,22 @@ export function BotRail({
                     moveFocus(index, event.key === previousKey ? -1 : 1);
                   }
                 }}
-                className={`relative flex shrink-0 flex-col items-center rounded-xl p-1.5 text-[10px] text-[var(--muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] ${
-                  horizontal ? 'w-11' : 'w-full'
+                className={`relative flex shrink-0 flex-col items-center text-[10px] text-[var(--muted)] transition hover:text-[var(--foreground)] ${
+                  horizontal ? 'w-11' : 'w-16'
                 }`}
-                style={
-                  selected
-                    ? {
-                        backgroundColor: palette.glow,
-                        boxShadow: `inset 0 0 0 2px ${palette.primary}`,
-                        color: palette.primary,
-                      }
-                    : undefined
-                }
               >
-                <span className="relative">
-                  <Mascot avatar={persona.avatar} size={horizontal ? 32 : 40} alt={persona.name} />
+                <span
+                  className={`relative flex items-center justify-center rounded-2xl transition ${
+                    horizontal ? 'h-12 w-11' : 'h-16 w-14'
+                  } ${selected ? 'scale-105' : ''}`}
+                  style={{
+                    background: selected
+                      ? `linear-gradient(160deg, ${palette.secondary}, ${palette.primary})`
+                      : `linear-gradient(160deg, ${palette.secondary}33, ${palette.primary}22)`,
+                    boxShadow: selected ? `0 0 0 2px ${palette.primary}` : undefined,
+                  }}
+                >
+                  <Mascot avatar={persona.avatar} size={horizontal ? 30 : 34} alt={persona.name} />
                   {busy && (
                     <span
                       className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border-2 border-[var(--surface)] bg-[var(--success)]"

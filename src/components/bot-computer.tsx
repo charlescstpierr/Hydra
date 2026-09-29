@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Conversation, Memory, Persona, Reminder, AttachmentKind } from '@/lib/db';
-import { IconClock, IconDocument, IconImage, IconLibrary, IconSpeaker, IconTable } from '@/components/icons';
-import { Mascot, mascotPalette } from '@/components/mascot';
+import { IconChat, IconClock, IconDocument, IconEdit, IconImage, IconLibrary, IconSpeaker, IconTable, IconVoice } from '@/components/icons';
+import { Mascot, MascotFigure, mascotPalette } from '@/components/mascot';
 import { EmptyState, ErrorState, LoadingState, SidePanel } from '@/components/ui';
 
 interface LibraryItem {
@@ -63,6 +63,7 @@ export function BotComputer({
   streamingConversationId,
   onOpenConversation,
   onNewConversation,
+  onVoice,
   onEditBot,
   onClose,
 }: {
@@ -72,6 +73,7 @@ export function BotComputer({
   streamingConversationId: string | null;
   onOpenConversation: (id: string) => void;
   onNewConversation: (personaId: string) => void;
+  onVoice: (personaId: string) => void;
   onEditBot: (personaId: string) => void;
   onClose: () => void;
 }) {
@@ -148,35 +150,67 @@ export function BotComputer({
 
   return (
     <SidePanel
-      title={`Ordinateur de ${persona.name}`}
+      title={persona.name}
       icon={<Mascot avatar={persona.avatar} size={18} alt="" />}
       onClose={onClose}
-      className="md:max-w-[380px]"
+      className="md:max-w-[420px]"
     >
       <div className="flex-1 overflow-y-auto">
         <div className="p-3">
-          <div className="overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--background)]">
-            <div className="flex items-center gap-1 border-b border-[var(--border)] px-3 py-2">
-              {[0, 1, 2].map((dot) => (
-                <span key={dot} className="h-2 w-2 rounded-full" style={{ backgroundColor: palette.primary }} />
-              ))}
-              <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">Screen</span>
+          <div
+            className="relative h-56 overflow-hidden rounded-3xl border border-white/15"
+            style={{ background: `linear-gradient(180deg, ${palette.secondary}, ${palette.primary})` }}
+          >
+            <span className="absolute -left-10 top-5 h-28 w-28 rounded-full bg-white/10" />
+            <span className="absolute -right-10 top-20 h-36 w-36 rounded-full bg-white/10" />
+            <span className="absolute bottom-16 left-12 h-20 w-20 rounded-full bg-white/10" />
+            <MascotFigure
+              avatar={persona.avatar}
+              size={104}
+              alt={persona.name}
+              className="absolute left-1/2 top-[14%] -translate-x-1/2"
+            />
+            <div className="absolute right-3 top-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => onEditBot(persona.id)}
+                className="btn btn-icon h-8 w-8 bg-black/30 text-white hover:bg-black/45"
+                title="Modifier le compagnon"
+                aria-label="Modifier le compagnon"
+              >
+                <IconEdit className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <div className="flex flex-col items-center px-4 py-5 text-center">
-              <Mascot avatar={persona.avatar} size={64} alt={persona.name} />
-              <h3 className="mt-3 text-sm font-semibold">{persona.name}</h3>
-              <p className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">{persona.tagline}</p>
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-4 pb-4 pt-16 text-white">
+              <div className="text-base font-semibold">{persona.name}</div>
+              <div className="mt-0.5 line-clamp-2 text-xs text-white/70">{persona.tagline}</div>
               <div
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]"
-                style={{ backgroundColor: palette.glow, color: palette.primary }}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]"
+                style={{ backgroundColor: 'rgb(0 0 0 / 30%)' }}
               >
                 <span className={`h-1.5 w-1.5 rounded-full bg-current ${isStreaming ? 'animate-pulse' : ''}`} />
                 {isStreaming ? 'En train de répondre…' : 'En ligne'}
               </div>
-              <p className="mt-3 text-[10px] text-[var(--muted)]">
-                {conversations.length} conversations · modèle {persona.preferred_model ?? 'par défaut'} · voix {persona.voice ?? '—'}
-              </p>
             </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => onNewConversation(persona.id)}
+              className="btn flex-1 bg-[var(--surface-2)]"
+            >
+              <IconChat className="h-3.5 w-3.5" /> Discuter
+            </button>
+            <button
+              type="button"
+              onClick={() => onVoice(persona.id)}
+              className="btn flex-1 bg-[var(--surface-2)]"
+            >
+              <IconVoice className="h-3.5 w-3.5" /> Parler
+            </button>
+          </div>
+          <div className="mt-2 text-center text-[10px] text-[var(--muted)]">
+            Ordinateur · {conversations.length} conversations · modèle {persona.preferred_model ?? 'par défaut'} · voix {persona.voice ?? '—'}
           </div>
         </div>
 
