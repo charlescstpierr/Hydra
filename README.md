@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hydra
 
-## Getting Started
+Chat multi-modèles self-hosted, dans l'esprit de Grokbot et de Muse : plusieurs têtes (Grok, Claude, GPT, Gemini, modèles locaux), une seule entité cohérente. Tu changes de modèle en plein fil, l'historique, la persona, la mémoire et les décisions suivent.
 
-First, run the development server:
+## Fonctionnalités
+
+**Modèles**
+- xAI/Grok, Anthropic/Claude, OpenAI/GPT, Google/Gemini, et tout endpoint compatible OpenAI (Ollama, LM Studio, vLLM).
+- Changement de modèle en plein milieu d'une conversation, streaming + raisonnement.
+- Régénération de la dernière réponse avec un autre modèle.
+
+**Cohérence inter-modèles**
+- Historique unique en SQLite partagé par tous les providers.
+- Persona commune, résumé roulant, provenance des tours précédents.
+- Règles système interdisant les « en tant que modèle X » et les ruptures de ton.
+
+**Mémoire**
+- Mémoire globale + mémoire par conversation, extraite automatiquement, visible et éditable.
+- Les fils parallèles partagent la mémoire de la conversation racine.
+
+**Personas**
+- Presets (Hydra, Ingénieur, Analyste, Plume, Compagnon, Conteur, Coach, Zen, Tuteur, Avocat du diable) + personas personnalisés.
+- Chaque persona a ses instructions, son modèle préféré, sa voix, sa vitesse et sa langue.
+
+**Voix**
+- TTS xAI natif (voix intégrées et custom, vitesse 0.7–1.5×, langue, balises expressives) avec repli OpenAI.
+- STT pour la dictée.
+- Clonage de voix via xAI à partir d'un extrait de référence.
+- Lecture automatique optionnelle des réponses, voix par persona.
+
+**Outils et artefacts**
+- Recherche web (Tavily), génération d'images.
+- Création d'artefacts (Markdown, HTML, CSV, texte), podcasts audio générés en TTS.
+- Rappels persistants (création par le chat ou à la main) et bibliothèque de tous les fichiers générés/uploadés.
+
+**Conversation**
+- Fils parallèles (side chats) rattachés à une conversation, avec mémoire partagée.
+- File de messages : tu peux envoyer pendant qu'Hydra répond, les messages sont traités à la suite.
+- Upload de fichiers, vision, PDF, texte, Markdown.
+
+## Démarrage rapide (Docker)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env   # remplis au moins une clé de provider
+docker compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'app écoute sur http://localhost:3000. Les données (SQLite + uploads) vivent dans le volume `hydra-data` monté sur `/data`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Démarrage local
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env
+npm install
+npm run dev
+```
 
-## Learn More
+Base par défaut : `./data/hydra.db`, uploads dans `./data/uploads`.
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Toutes les variables sont documentées dans `.env.example`. L'essentiel :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Rôle |
+| --- | --- |
+| `XAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` | providers ; un seul suffit |
+| `LOCAL_BASE_URL`, `LOCAL_MODELS` | modèles locaux compatibles OpenAI |
+| `DEFAULT_MODEL`, `UTILITY_MODEL` | modèle principal et modèle utilitaire (titres, résumés, mémoire) |
+| `TAVILY_API_KEY` | recherche web |
+| `IMAGE_MODEL` | génération d'images |
+| `SPEECH_VOICE`, `OPENAI_SPEECH_MODEL`, `OPENAI_TRANSCRIPTION_MODEL` | voix |
+| `HYDRA_DB_PATH`, `HYDRA_UPLOAD_DIR` | stockage |
 
-## Deploy on Vercel
+Les clés restent côté serveur : aucune n'est exposée au navigateur.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js (App Router) · React · TypeScript · Tailwind · AI SDK · better-sqlite3.

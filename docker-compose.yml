@@ -1,0 +1,14 @@
+services:
+  hydra:
+    build: .
+    image: hydra:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    volumes:
+      - hydra-data:/data
+
+volumes:
+  hydra-data:
