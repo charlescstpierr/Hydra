@@ -1,3 +1,7 @@
+'use client';
+
+import { useId } from 'react';
+
 /**
  * Original geometric robot mascots: colorful shapes, no mouth, two small eyes
  * that blink. Rendered as inline SVG so every bot gets a distinct silhouette,
@@ -190,7 +194,7 @@ export function MascotFigure({
   const period = 3.8 + (seed % 23) / 10;
   const delay = (seed % 17) / 10;
   const faceCy = s.shape === 'square' ? 49 : s.shape === 'drop' ? 62 : s.shape === 'wide' ? 53 : s.shape === 'tall' ? 43 : s.shape === 'capsule' ? 48 : 50;
-  const gradId = `mg-${s.id}`;
+  const gradId = useId();
 
   return (
     <svg
