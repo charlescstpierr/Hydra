@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Reminder } from '@/lib/db';
-import { IconClose, IconReminder } from '@/components/icons';
+import { IconReminder } from '@/components/icons';
+import { EmptyState, ErrorState, LoadingState, SidePanel } from '@/components/ui';
 
 const formatter = new Intl.DateTimeFormat('fr-CA', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -17,12 +18,23 @@ export function RemindersPanel({
   const [now, setNow] = useState(0);
   const [title, setTitle] = useState('');
   const [dueAt, setDueAt] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch('/api/reminders');
-    const data = (await res.json()) as { reminders: Reminder[] };
-    setReminders(data.reminders);
-    setNow(Date.now());
+    setLoading(true);
+    try {
+      const res = await fetch('/api/reminders');
+      if (!res.ok) throw new Error('Rappels indisponibles.');
+      const data = (await res.json()) as { reminders: Reminder[] };
+      setReminders(data.reminders);
+      setNow(Date.now());
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -56,25 +68,16 @@ export function RemindersPanel({
   }
 
   async function remove(id: string) {
+    if (!window.confirm('Supprimer ce rappel ?')) return;
     await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
     await refresh();
   }
 
   return (
-    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
-        <span className="flex items-center gap-2 text-sm font-semibold"><IconReminder />Rappels</span>
-        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
-          <IconClose />
-        </button>
-      </div>
+    <SidePanel title="Rappels" icon={<IconReminder />} onClose={onClose}>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3 text-xs">
-        {reminders.length === 0 && (
-          <p className="text-[var(--muted)]">
-            Aucun rappel. Tu peux aussi demander « rappelle-moi… » dans le chat.
-          </p>
-        )}
+        {loading ? <LoadingState label="Chargement des rappels" /> : error ? <ErrorState message={error} onRetry={() => void refresh()} /> : reminders.length === 0 && <EmptyState title="Aucun rappel" description="Demande aussi à Hydra « rappelle-moi… » dans le chat." />}
         {reminders.map((reminder) => {
           const due = new Date(reminder.due_at);
           const overdue = reminder.status === 'pending' && due.getTime() <= now;
@@ -95,19 +98,19 @@ export function RemindersPanel({
               )}
               <div className="mt-2 flex gap-2 text-[11px] text-[var(--muted)]">
                 {reminder.status !== 'done' && (
-                  <button onClick={() => void patch(reminder.id, 'done')} className="hover:text-[var(--foreground)]">
+                <button onClick={() => void patch(reminder.id, 'done')} className="btn px-1 py-0.5 text-[11px] hover:text-[var(--foreground)]">
                     Terminé
                   </button>
                 )}
                 {reminder.status === 'pending' && (
                   <button
                     onClick={() => void patch(reminder.id, 'cancelled')}
-                    className="hover:text-[var(--foreground)]"
+                    className="btn px-1 py-0.5 text-[11px] hover:text-[var(--foreground)]"
                   >
                     Annuler
                   </button>
                 )}
-                <button onClick={() => void remove(reminder.id)} className="hover:text-[var(--danger)]">
+                <button onClick={() => void remove(reminder.id)} className="btn px-1 py-0.5 text-[11px] hover:text-[var(--danger)]">
                   Supprimer
                 </button>
               </div>
@@ -136,6 +139,6 @@ export function RemindersPanel({
           Ajouter
         </button>
       </div>
-    </aside>
+    </SidePanel>
   );
 }

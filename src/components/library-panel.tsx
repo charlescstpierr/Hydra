@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AttachmentKind } from '@/lib/db';
 import {
   IconClip,
-  IconClose,
   IconDocument,
   IconImage,
   IconLibrary,
   IconSpeaker,
   IconTable,
 } from '@/components/icons';
+import { EmptyState, ErrorState, LoadingState, SidePanel } from '@/components/ui';
 
 interface LibraryItem {
   id: string;
@@ -36,11 +36,22 @@ type Filter = 'all' | 'generated' | 'upload';
 export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch('/api/library');
-    const data = (await res.json()) as { items: LibraryItem[] };
-    setItems(data.items);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/library');
+      if (!res.ok) throw new Error('Bibliothèque indisponible.');
+      const data = (await res.json()) as { items: LibraryItem[] };
+      setItems(data.items);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -51,13 +62,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const visible = items.filter((item) => filter === 'all' || item.origin === filter);
 
   return (
-    <aside className="glass flex w-[320px] shrink-0 flex-col border-l border-[var(--border)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3.5">
-        <span className="flex items-center gap-2 text-sm font-semibold"><IconLibrary />Bibliothèque</span>
-        <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
-          <IconClose />
-        </button>
-      </div>
+    <SidePanel title="Bibliothèque" icon={<IconLibrary />} onClose={onClose}>
 
       <div className="flex gap-1 border-b border-[var(--border)] p-2 text-[11px]">
         {(['all', 'generated', 'upload'] as Filter[]).map((value) => (
@@ -72,7 +77,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3 text-xs">
-        {visible.length === 0 && <p className="text-[var(--muted)]">Rien pour le moment.</p>}
+        {loading ? <LoadingState label="Chargement de la bibliothèque" /> : error ? <ErrorState message={error} onRetry={() => void refresh()} /> : visible.length === 0 && <EmptyState title="Aucun fichier" description="Les uploads et artefacts apparaîtront ici." />}
         {visible.map((item) => (
           <a
             key={item.id}
@@ -95,6 +100,6 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
           </a>
         ))}
       </div>
-    </aside>
+    </SidePanel>
   );
 }

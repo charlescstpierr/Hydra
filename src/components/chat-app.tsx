@@ -34,6 +34,7 @@ import type { Attachment, Conversation, Memory, Message, Persona } from '@/lib/d
 import type { ModelInfo } from '@/lib/models';
 import { readEventStream } from '@/lib/sse';
 import type { VoiceInfo } from '@/lib/voice';
+import { ErrorState, LoadingState } from '@/components/ui';
 
 interface Capabilities {
   webSearch: boolean;
@@ -90,6 +91,9 @@ export function ChatApp() {
   >('none');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const queueRef = useRef<string[]>([]);
@@ -125,8 +129,13 @@ export function ChatApp() {
   }, []);
 
   const openConversation = useCallback(async (id: string) => {
+    setLoadingConversation(true);
     const res = await fetch(`/api/conversations/${id}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      setError('Impossible de charger cette conversation.');
+      setLoadingConversation(false);
+      return;
+    }
     const data = (await res.json()) as {
       conversation: Conversation;
       messages: Message[];
@@ -143,11 +152,14 @@ export function ChatApp() {
     setLiveReasoning('');
     setToolEvents([]);
     if (data.conversation.default_model) setModelId(data.conversation.default_model);
+    setLoadingConversation(false);
   }, []);
 
   useEffect(() => {
     (async () => {
+      try {
       const res = await fetch('/api/models');
+      if (!res.ok) throw new Error('Impossible de charger la configuration.');
       const data = (await res.json()) as {
         models: ModelInfo[];
         defaultModel: string | null;
@@ -161,6 +173,11 @@ export function ChatApp() {
       if (data.capabilities.voice) await refreshVoices();
       const list = await refreshConversations();
       if (list.length > 0) await openConversation(list[0].id);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setInitializing(false);
+      }
     })();
   }, [openConversation, refreshConversations, refreshPersonas, refreshVoices]);
 
@@ -254,6 +271,7 @@ export function ChatApp() {
       }
       const { attachment } = (await res.json()) as { attachment: Attachment };
       setPending((current) => [...current, attachment]);
+      setToast(`${file.name} ajouté`);
     }
   }
 
@@ -367,6 +385,12 @@ export function ChatApp() {
     void run({ regenerateFromSeq: lastAssistant.seq });
   }
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
   async function toggleRecording() {
     if (recording) {
       recorderRef.current?.stop();
@@ -430,9 +454,12 @@ export function ChatApp() {
   ];
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full min-h-0">
+      <a href="#chat-main" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:m-2 focus:rounded-md focus:bg-[var(--surface-2)] focus:px-3 focus:py-2">
+        Aller au chat
+      </a>
       {sidebarOpen && (
-        <aside className="glass flex w-[264px] shrink-0 flex-col border-r border-[var(--border)]">
+        <aside className="glass fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 flex-col border-r border-[var(--border)] shadow-2xl md:relative md:z-auto md:shadow-none">
           <div className="flex items-center gap-2 px-4 py-4">
             <Mascot avatar="preset-hydra" size={26} alt="Hydra" />
             <span className="text-[15px] font-semibold tracking-tight">Hydra</span>
@@ -440,6 +467,7 @@ export function ChatApp() {
               onClick={() => setSidebarOpen(false)}
               className="btn btn-icon ml-auto text-[var(--muted)]"
               title="Masquer le panneau"
+              aria-label="Masquer le panneau"
             >
               <IconSidebar />
             </button>
@@ -456,7 +484,7 @@ export function ChatApp() {
           </div>
 
           <div className="flex-1 space-y-0.5 overflow-y-auto px-2">
-            {conversations.length === 0 && (
+            {initializing ? <LoadingState label="Chargement des conversations" /> : conversations.length === 0 && (
               <p className="px-3 py-6 text-center text-xs text-[var(--muted)]">
                 Aucune conversation.
               </p>
@@ -481,6 +509,7 @@ export function ChatApp() {
                   onClick={() => void removeConversation(item.id)}
                   className="mr-1 rounded-md px-1.5 py-1 text-[var(--muted)] opacity-0 transition hover:text-[var(--danger)] group-hover:opacity-100"
                   title="Supprimer"
+                  aria-label={`Supprimer ${item.title}`}
                 >
                   <IconTrash className="h-3.5 w-3.5" />
                 </button>
@@ -511,7 +540,7 @@ export function ChatApp() {
         </aside>
       )}
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main id="chat-main" className="flex min-w-0 flex-1 flex-col">
         <header className="glass flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2.5">
           {!sidebarOpen && (
             <button onClick={() => setSidebarOpen(true)} className="btn btn-icon" title="Afficher le panneau">
@@ -521,7 +550,8 @@ export function ChatApp() {
           <select
             value={modelId}
             onChange={(event) => setModelId(event.target.value)}
-            className="field max-w-[220px] truncate"
+            aria-label="Modèle"
+            className="field max-w-[220px] min-w-0 flex-1 truncate sm:flex-none"
           >
             {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
             {availableModels.map((model) => (
@@ -535,6 +565,7 @@ export function ChatApp() {
             value={conversation?.persona_id ?? ''}
             onChange={(event) => void setConversationPersona(event.target.value || null)}
             disabled={!conversation}
+            aria-label="Persona"
             className="field max-w-[180px] truncate"
           >
             <option value="">Persona par défaut</option>
@@ -550,6 +581,7 @@ export function ChatApp() {
               onClick={() => setUseWeb(!useWeb)}
               className={`chip ${useWeb ? 'chip-active' : ''}`}
               title="Recherche web"
+              aria-pressed={useWeb}
             >
               <IconGlobe className="h-3.5 w-3.5" /> Web
             </button>
@@ -559,6 +591,7 @@ export function ChatApp() {
               onClick={() => setUseImages(!useImages)}
               className={`chip ${useImages ? 'chip-active' : ''}`}
               title="Génération d’images"
+              aria-pressed={useImages}
             >
               <IconImage className="h-3.5 w-3.5" /> Images
             </button>
@@ -602,8 +635,9 @@ export function ChatApp() {
         )}
 
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-5 py-8">
-            {messages.length === 0 && !streaming && (
+          <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-5 sm:py-8">
+            {loadingConversation && <LoadingState label="Chargement de la conversation" />}
+            {messages.length === 0 && !streaming && !initializing && !loadingConversation && (
               <div className="fade-in mt-[12vh] text-center">
                 <Mascot avatar="preset-hydra" size={72} className="mx-auto mb-5" alt="Hydra" />
                 <h1 className="text-3xl font-semibold tracking-tight">Bonjour.</h1>
@@ -786,11 +820,7 @@ export function ChatApp() {
               </article>
             )}
 
-            {error && (
-              <div className="mb-4 rounded-xl border border-[rgba(255,107,107,0.4)] bg-[rgba(255,107,107,0.08)] px-3 py-2 text-sm text-[var(--danger)]">
-                {error}
-              </div>
-            )}
+            {error && <ErrorState message={error} onRetry={() => setError(null)} />}
             <div ref={bottomRef} />
           </div>
         </div>
@@ -827,10 +857,11 @@ export function ChatApp() {
                   event.target.value = '';
                 }}
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="btn btn-icon text-[var(--muted)]"
-                title="Joindre un fichier"
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn btn-icon text-[var(--muted)]"
+                  title="Joindre un fichier"
+                  aria-label="Joindre un fichier"
               >
                 <IconClip />
               </button>
@@ -839,6 +870,7 @@ export function ChatApp() {
                   onClick={() => void toggleRecording()}
                   className={`btn btn-icon ${recording ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}`}
                   title={recording ? 'Arrêter la dictée' : 'Dicter'}
+                  aria-label={recording ? 'Arrêter la dictée' : 'Dicter'}
                 >
                   {recording ? <IconStop /> : <IconMic />}
                 </button>
@@ -858,6 +890,7 @@ export function ChatApp() {
                     ? 'Ajouter un message à la file…'
                     : `Écris à ${activePersona?.name ?? 'Hydra'}…`
                 }
+                aria-label="Message"
                 className="max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] outline-none placeholder:text-[var(--muted)]"
               />
               <button
@@ -865,6 +898,7 @@ export function ChatApp() {
                 disabled={streaming || messages.length === 0}
                 className="btn btn-icon text-[var(--muted)]"
                 title="Régénérer la dernière réponse"
+                aria-label="Régénérer la dernière réponse"
               >
                 <IconRefresh />
               </button>
@@ -873,6 +907,7 @@ export function ChatApp() {
                 disabled={!draft.trim()}
                 className="btn btn-primary btn-icon"
                 title={streaming ? 'Mettre en file' : 'Envoyer'}
+                aria-label={streaming ? 'Mettre en file' : 'Envoyer'}
               >
                 <IconArrowUp />
               </button>
@@ -884,6 +919,7 @@ export function ChatApp() {
         </div>
       </main>
 
+      {toast && <div className="pointer-events-none fixed bottom-5 left-1/2 z-[70] -translate-x-1/2 toast" role="status">{toast}</div>}
       {panel === 'memory' && (
         <MemoryPanel
           conversationId={conversation?.id ?? null}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Attachment, Persona } from '@/lib/db';
 import type { ModelInfo } from '@/lib/models';
 import type { VoiceInfo } from '@/lib/voice';
@@ -134,6 +134,14 @@ export function BotStudio({
   const [saving, setSaving] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   const mine = useMemo(() => personas.filter((p) => p.is_preset === 0), [personas]);
   const presets = useMemo(() => personas.filter((p) => p.is_preset === 1), [personas]);
 
@@ -237,11 +245,11 @@ export function BotStudio({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="bot-studio-title">
       <div className="glass flex h-full max-h-[900px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[var(--border)]">
         <header className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">
+            <h2 id="bot-studio-title" className="text-base font-semibold">
               {draft ? (draft.id ? 'Modifier le bot' : 'Créer un bot') : 'Mes bots'}
             </h2>
             <p className="text-xs text-[var(--muted)]">
@@ -256,7 +264,7 @@ export function BotStudio({
                 <IconPlus className="h-3.5 w-3.5" /> Créer un bot
               </button>
             )}
-            <button onClick={onClose} className="btn btn-icon text-[var(--muted)]">
+            <button onClick={onClose} className="btn btn-icon text-[var(--muted)]" aria-label="Fermer Mes bots">
               <IconClose />
             </button>
           </div>
