@@ -43,6 +43,27 @@ export const IconEdit = (props: IconProps) => (
   </Svg>
 );
 
+export const IconCompose = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="m4 16.5-.7 3.7 3.7-.7L18.5 8a2.1 2.1 0 0 0-3-3z" />
+    <path d="m14 6 3 3M12 20h8" />
+  </Svg>
+);
+
+export const IconSearch = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="10.8" cy="10.8" r="6.8" />
+    <path d="m16 16 4.5 4.5" />
+  </Svg>
+);
+
+export const IconInfo = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Svg>
+);
+
 export const IconDocument = (props: IconProps) => (
   <Svg {...props}>
     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
