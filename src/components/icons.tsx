@@ -222,3 +222,11 @@ export const IconTrash = (props: IconProps) => (
     <path d="M6.5 7 7 20h10l.5-13" />
   </Svg>
 );
+
+export const IconMore = (props: IconProps) => (
+  <Svg {...props}>
+    <circle cx="5" cy="12" r="1.15" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.15" fill="currentColor" stroke="none" />
+  </Svg>
+);

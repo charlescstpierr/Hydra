@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
   IconArrowUp,
   IconBack,
@@ -15,6 +15,7 @@ import {
   IconLibrary,
   IconMemory,
   IconMic,
+  IconMore,
   IconPersona,
   IconRefresh,
   IconReminder,
@@ -45,6 +46,11 @@ interface Capabilities {
   voice: boolean;
   voiceCloning: boolean;
 }
+
+type ThreadOverlay =
+  | { kind: 'none' }
+  | { kind: 'menu' }
+  | { kind: 'actions'; messageId: string };
 
 const EMPTY_CAPS: Capabilities = {
   webSearch: false,
@@ -129,6 +135,7 @@ export function ChatApp() {
   const [panel, setPanel] = useState<
     'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library' | 'computer'
   >('none');
+  const [overlay, setOverlay] = useState<ThreadOverlay>({ kind: 'none' });
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('conversations');
@@ -145,6 +152,7 @@ export function ChatApp() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const menuRootRef = useRef<HTMLDivElement | null>(null);
 
   const availableModels = useMemo(() => models.filter((m) => m.available), [models]);
   const activePersona = useMemo(
@@ -205,6 +213,17 @@ export function ChatApp() {
   useEffect(() => {
     if (window.matchMedia('(min-width: 768px)').matches) setSidebarOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (overlay.kind !== 'menu') return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = menuRootRef.current;
+      if (root && event.target instanceof Node && root.contains(event.target)) return;
+      setOverlay({ kind: 'none' });
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [overlay.kind]);
 
   useEffect(() => {
     (async () => {
@@ -575,6 +594,24 @@ export function ChatApp() {
   const showWaiting = streaming && !liveText && !replySettled;
   const lastAssistantId = [...messages].reverse().find((item) => item.role === 'assistant')?.id ?? null;
 
+  function toggleMessageActions(event: MouseEvent<HTMLElement>, messageId: string) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('button, a, summary, input')) return;
+    setOverlay((current) =>
+      current.kind === 'actions' && current.messageId === messageId
+        ? { kind: 'none' }
+        : { kind: 'actions', messageId },
+    );
+  }
+
+  function actionsClass(messageId: string) {
+    const open = overlay.kind === 'actions' && overlay.messageId === messageId;
+    return `mt-1 flex items-center gap-1 text-[11px] text-[var(--muted)] transition ${
+      open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+    }`;
+  }
+
   return (
     <div className="relative flex h-full min-h-0">
       <a href="#chat-main" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:m-2 focus:rounded-md focus:bg-[var(--surface-2)] focus:px-3 focus:py-2">
@@ -777,7 +814,7 @@ export function ChatApp() {
       )}
 
       <main id="chat-main" className="flex min-w-0 flex-1 flex-col">
-        <header className="glass flex min-h-[66px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5">
+        <header className="glass relative z-30 flex min-h-[66px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5">
           {!sidebarOpen && (
             <button onClick={() => setSidebarOpen(true)} className="btn btn-icon shrink-0" title="Messages" aria-label="Messages">
               <IconBack />
@@ -789,93 +826,118 @@ export function ChatApp() {
             <div className={`truncate text-xs ${streaming ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'}`}>{headerStatus}</div>
           </div>
 
-          <div className="ml-auto hidden min-w-0 items-center gap-1.5 overflow-x-auto sm:flex">
-            <select
-              value={modelId}
-              onChange={(event) => setModelId(event.target.value)}
-              aria-label="Modèle"
-              className="field max-w-[150px] min-w-0 truncate rounded-full py-1.5 text-xs"
-            >
-              {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
-              {availableModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={conversation?.persona_id ?? ''}
-              onChange={(event) => void setConversationPersona(event.target.value || null)}
-              disabled={!conversation}
-              aria-label="Persona"
-              className="field max-w-[130px] truncate rounded-full py-1.5 text-xs"
-            >
-              <option value="">Persona par défaut</option>
-              {personas.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.name}
-                </option>
-              ))}
-            </select>
-
-            {capabilities.webSearch && (
-              <button
-                onClick={() => setUseWeb(!useWeb)}
-                className={`btn btn-icon hidden sm:inline-flex ${useWeb ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Recherche web"
-                aria-pressed={useWeb}
-              >
-                <IconGlobe className="h-4 w-4" />
-              </button>
-            )}
-            {capabilities.imageGeneration && (
-              <button
-                onClick={() => setUseImages(!useImages)}
-                className={`btn btn-icon hidden sm:inline-flex ${useImages ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Génération d’images"
-                aria-pressed={useImages}
-              >
-                <IconImage className="h-4 w-4" />
-              </button>
-            )}
+          <div ref={menuRootRef} className="relative ml-auto shrink-0">
             <button
-              onClick={() =>
-                void newConversation({
-                  personaId: conversation?.persona_id ?? null,
-                  parentId: conversation?.parent_id ?? conversation?.id ?? null,
-                })
-              }
-              disabled={!conversation}
-              className="btn btn-icon text-[var(--muted)]"
-              title="Fil parallèle"
-              aria-label="Fil parallèle"
+              type="button"
+              onClick={() => setOverlay((current) => (current.kind === 'menu' ? { kind: 'none' } : { kind: 'menu' }))}
+              className="btn btn-icon ml-auto text-[var(--muted)]"
+              title="Options"
+              aria-label="Options"
+              aria-expanded={overlay.kind === 'menu'}
             >
-              <IconBranch className="h-4 w-4" />
+              <IconMore />
             </button>
-            {capabilities.voice && (
-              <button
-                onClick={() => setPanel(panel === 'voice' ? 'none' : 'voice')}
-                className={`btn btn-icon ${panel === 'voice' ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Voix"
-                aria-label="Voix"
-              >
-                <IconVoice className="h-4 w-4" />
-              </button>
+            {overlay.kind === 'menu' && (
+              <div className="absolute right-0 top-full z-30 mt-2 flex w-60 flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-lg">
+                <select
+                  value={modelId}
+                  onChange={(event) => setModelId(event.target.value)}
+                  aria-label="Modèle"
+                  className="field w-full rounded-full py-1.5 text-xs"
+                >
+                  {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
+                  {availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={conversation?.persona_id ?? ''}
+                  onChange={(event) => void setConversationPersona(event.target.value || null)}
+                  disabled={!conversation}
+                  aria-label="Persona"
+                  className="field w-full rounded-full py-1.5 text-xs"
+                >
+                  <option value="">Persona par défaut</option>
+                  {personas.map((persona) => (
+                    <option key={persona.id} value={persona.id}>
+                      {persona.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {capabilities.webSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setUseWeb(!useWeb)}
+                      className={`btn btn-icon ${useWeb ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Recherche web"
+                      aria-pressed={useWeb}
+                    >
+                      <IconGlobe className="h-4 w-4" />
+                    </button>
+                  )}
+                  {capabilities.imageGeneration && (
+                    <button
+                      type="button"
+                      onClick={() => setUseImages(!useImages)}
+                      className={`btn btn-icon ${useImages ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Génération d’images"
+                      aria-pressed={useImages}
+                    >
+                      <IconImage className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void newConversation({
+                        personaId: conversation?.persona_id ?? null,
+                        parentId: conversation?.parent_id ?? conversation?.id ?? null,
+                      })
+                    }
+                    disabled={!conversation}
+                    className="btn btn-icon text-[var(--muted)]"
+                    title="Fil parallèle"
+                    aria-label="Fil parallèle"
+                  >
+                    <IconBranch className="h-4 w-4" />
+                  </button>
+                  {capabilities.voice && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPanel(panel === 'voice' ? 'none' : 'voice');
+                        setOverlay({ kind: 'none' });
+                      }}
+                      className={`btn btn-icon ${panel === 'voice' ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Voix"
+                      aria-label="Voix"
+                    >
+                      <IconVoice className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!activePersona) return;
+                      setSelectedBotId(activePersona.id);
+                      setPanel(panel === 'computer' && selectedBotId === activePersona.id ? 'none' : 'computer');
+                      setOverlay({ kind: 'none' });
+                    }}
+                    disabled={!activePersona}
+                    className="btn btn-icon text-[var(--muted)]"
+                    title="Informations du compagnon"
+                    aria-label="Informations du compagnon"
+                  >
+                    <IconInfo className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             )}
-            <button
-              onClick={() => {
-                if (!activePersona) return;
-                setSelectedBotId(activePersona.id);
-                setPanel(panel === 'computer' && selectedBotId === activePersona.id ? 'none' : 'computer');
-              }}
-              disabled={!activePersona}
-              className="btn btn-icon text-[var(--muted)]"
-              title="Informations du compagnon"
-              aria-label="Informations du compagnon"
-            >
-              <IconInfo className="h-4 w-4" />
-            </button>
           </div>
         </header>
 
@@ -916,11 +978,21 @@ export function ChatApp() {
               return message.role === 'user' ? (
                 <div key={message.id}>
                   {day}
-                <article className="fade-in mb-3 flex justify-end">
+                <article className="fade-in group mb-3 flex justify-end" onClick={(event) => toggleMessageActions(event, message.id)}>
                   <div className="max-w-[78%]">
                     <div className="bubble bubble-me whitespace-pre-wrap">
                       {message.content}
                       <time className="mt-1 block text-right text-[11px] text-white/75">{clockTime(message.created_at)}</time>
+                    </div>
+                    <div className={`${actionsClass(message.id)} justify-end`}>
+                      <button
+                        onClick={() => void navigator.clipboard.writeText(message.content)}
+                        className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
+                        title="Copier"
+                        aria-label="Copier"
+                      >
+                        <IconCopy className="h-3.5 w-3.5" /> Copier
+                      </button>
                     </div>
                     <div className="mt-2 flex flex-wrap justify-end gap-2">
                       {attachmentsFor(message.id).map((attachment) =>
@@ -951,7 +1023,10 @@ export function ChatApp() {
               ) : (
                 <div key={message.id}>
                   {day}
-                <article className="fade-in group mb-3 flex items-end gap-2">
+                <article
+                  className="fade-in group mb-3 flex items-end gap-2"
+                  onClick={(event) => toggleMessageActions(event, message.id)}
+                >
                   <Mascot
                     avatar={activePersona?.avatar ?? 'preset-hydra'}
                     size={22}
@@ -992,7 +1067,7 @@ export function ChatApp() {
                         ),
                       )}
                     </div>
-                    <div className="mt-1 flex items-center gap-1 text-[11px] text-[var(--muted)] opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className={actionsClass(message.id)}>
                       <button
                         onClick={() => void navigator.clipboard.writeText(message.content)}
                         className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
