@@ -348,6 +348,22 @@ input[type='range'] {
 .dots span:nth-child(3) {
   animation-delay: 0.36s;
 }
+
+.wait-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px 12px;
+  color: var(--foreground);
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+.wait-mark .pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--foreground);
+}
 @keyframes blink {
   0%,
   80%,

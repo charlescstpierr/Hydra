@@ -140,14 +140,14 @@ function EyesGroup({ kind, cy }: { kind: Eyes; cy: number }) {
 
 function Antennae({ kind, top, color }: { kind: Antenna; top: number; color: string }) {
   const y = top + 6;
-  const line = { stroke: color, strokeWidth: 2.4, strokeLinecap: 'round' as const, fill: 'none' };
+  const line = { stroke: color, strokeWidth: 3.2, strokeLinecap: 'round' as const, fill: 'none' };
   const tips = (left: [number, number], right: [number, number], tip: (x: number, y: number) => ReactNode) => (
     <>
       {tip(left[0], left[1])}
       {tip(right[0], right[1])}
     </>
   );
-  const ball = (x: number, yy: number) => <circle cx={x} cy={yy} r={3.6} fill={color} />;
+  const ball = (x: number, yy: number) => <circle cx={x} cy={yy} r={4.2} fill={color} />;
   switch (kind) {
     case 'curved':
       return (
@@ -225,12 +225,12 @@ export function MascotFigure({
   const eyeCy = visor.y + visor.h / 2 + 1;
 
   return (
-    <svg
-      viewBox="-6 -14 112 124"
+      <svg
+      viewBox="16 -8 68 118"
       width={size}
       height={size}
       style={{ width: size, height: size }}
-      className={`shrink-0 self-start overflow-visible ${className}`}
+      className={`shrink-0 self-start ${className}`}
       role={alt ? 'img' : undefined}
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
@@ -242,16 +242,14 @@ export function MascotFigure({
         </radialGradient>
       </defs>
       <g className={animate ? 'mascot-float' : undefined} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
-        <ellipse cx={52} cy={102} rx={24} ry={3.5} fill={INK} opacity={0.12} />
-        {/* legs + arms */}
-        <path d="M46 92 L44 101" stroke={INK} strokeWidth={3} strokeLinecap="round" />
-        <path d="M62 92 L66 101" stroke={INK} strokeWidth={3} strokeLinecap="round" />
-        <path d="M70 80 q6 2 8 6" stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none" />
-        <path d="M40 78 q-6 2 -7 7" stroke={INK} strokeWidth={3} strokeLinecap="round" fill="none" />
-        {/* body */}
-        <ellipse cx={55} cy={80} rx={17} ry={14} fill={s.secondary} />
-        <ellipse cx={55} cy={80} rx={17} ry={14} fill={`url(#${uid})`} />
-        <Antennae kind={s.antenna} top={top} color={INK} />
+        <ellipse cx={52} cy={104} rx={16} ry={3} fill={s.primary} opacity={0.28} />
+        <path d="M44 90 L38 104" stroke={s.primary} strokeWidth={3.4} strokeLinecap="round" />
+        <path d="M50 92 L48 106" stroke={s.primary} strokeWidth={3.4} strokeLinecap="round" />
+        <path d="M60 92 L64 106" stroke={s.primary} strokeWidth={3.4} strokeLinecap="round" />
+        <path d="M68 88 L76 100" stroke={s.primary} strokeWidth={3.4} strokeLinecap="round" />
+        <ellipse cx={54} cy={88} rx={14} ry={11} fill={s.secondary} stroke={s.primary} strokeWidth={2.4} />
+        <ellipse cx={54} cy={86} rx={8} ry={5} fill={`url(#${uid})`} />
+        <Antennae kind={s.antenna} top={top} color={s.primary} />
         {/* head */}
         <path d={path} fill={s.secondary} />
         <path d={path} fill={`url(#${uid})`} />

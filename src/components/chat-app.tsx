@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
   IconArrowUp,
   IconBack,
@@ -15,6 +15,7 @@ import {
   IconLibrary,
   IconMemory,
   IconMic,
+  IconMore,
   IconPersona,
   IconRefresh,
   IconReminder,
@@ -31,7 +32,6 @@ import { Markdown } from '@/components/markdown';
 import { MemoryPanel } from '@/components/memory-panel';
 import { BotStudio } from '@/components/bot-studio';
 import { BotComputer } from '@/components/bot-computer';
-import { BotGallery } from '@/components/bot-gallery';
 import { RemindersPanel } from '@/components/reminders-panel';
 import { DEFAULT_VOICE_SETTINGS, VoicePanel, type VoiceSettings } from '@/components/voice-panel';
 import type { Attachment, Conversation, Memory, Message, Persona } from '@/lib/db';
@@ -46,6 +46,11 @@ interface Capabilities {
   voice: boolean;
   voiceCloning: boolean;
 }
+
+type ThreadOverlay =
+  | { kind: 'none' }
+  | { kind: 'menu' }
+  | { kind: 'actions'; messageId: string };
 
 const EMPTY_CAPS: Capabilities = {
   webSearch: false,
@@ -66,16 +71,39 @@ const TOOL_LABELS: Record<string, string> = {
 
 type SidebarTab = 'bots' | 'conversations';
 
-function relativeTime(value: string): string {
-  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
-  const minutes = Math.floor(elapsed / 60000);
-  if (minutes < 1) return 'à l’instant';
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `il y a ${hours} h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `il y a ${days} j`;
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(new Date(value));
+function dayKey(value: string): string {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dayLabel(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const start = (item: Date) => new Date(item.getFullYear(), item.getMonth(), item.getDate()).getTime();
+  const diff = Math.round((start(today) - start(date)) / 86400000);
+  if (diff === 0) return 'Aujourd’hui';
+  if (diff === 1) return 'Hier';
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(date);
+}
+
+function clockTime(value: string): string {
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+}
+
+function listTime(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const key = (item: Date) => `${item.getFullYear()}-${item.getMonth()}-${item.getDate()}`;
+  if (key(date) === key(today)) return clockTime(value);
+  const start = (item: Date) => new Date(item.getFullYear(), item.getMonth(), item.getDate()).getTime();
+  const diff = Math.round((start(today) - start(date)) / 86400000);
+  if (diff === 1) return 'hier';
+  if (diff < 7) return new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(date);
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(date);
+}
+
+function closeSidebarIfNarrow(setOpen: (open: boolean) => void) {
+  if (window.matchMedia('(max-width: 767px)').matches) setOpen(false);
 }
 
 export function ChatApp() {
@@ -107,9 +135,11 @@ export function ChatApp() {
   const [panel, setPanel] = useState<
     'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library' | 'computer'
   >('none');
+  const [overlay, setOverlay] = useState<ThreadOverlay>({ kind: 'none' });
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('bots');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('conversations');
+  const [replySettled, setReplySettled] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState('');
   const [recording, setRecording] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -121,6 +151,8 @@ export function ChatApp() {
   const streamingRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const menuRootRef = useRef<HTMLDivElement | null>(null);
 
   const availableModels = useMemo(() => models.filter((m) => m.available), [models]);
   const activePersona = useMemo(
@@ -175,7 +207,23 @@ export function ChatApp() {
     setToolEvents([]);
     if (data.conversation.default_model) setModelId(data.conversation.default_model);
     setLoadingConversation(false);
+    closeSidebarIfNarrow(setSidebarOpen);
   }, []);
+
+  useEffect(() => {
+    if (window.matchMedia('(min-width: 768px)').matches) setSidebarOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (overlay.kind !== 'menu') return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = menuRootRef.current;
+      if (root && event.target instanceof Node && root.contains(event.target)) return;
+      setOverlay({ kind: 'none' });
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [overlay.kind]);
 
   useEffect(() => {
     (async () => {
@@ -332,11 +380,14 @@ export function ChatApp() {
     setError(null);
     streamingRef.current = true;
     setStreaming(true);
+    setReplySettled(false);
     setLiveText('');
     setLiveReasoning('');
     setToolEvents([]);
     setDraft('');
     setPending([]);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     if (options.regenerateFromSeq !== undefined) {
       setMessages((current) => current.filter((m) => m.seq < options.regenerateFromSeq!));
@@ -346,6 +397,7 @@ export function ChatApp() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           conversationId: active.id,
           modelId,
@@ -382,6 +434,7 @@ export function ChatApp() {
             setMessages((current) => [...current, message]);
             setLiveText('');
             setLiveReasoning('');
+            setReplySettled(true);
             if (voiceSettings.autoplay && capabilities.voice) void speak(message.content);
             break;
           }
@@ -396,8 +449,13 @@ export function ChatApp() {
       });
       if (active) await openConversation(active.id);
     } catch (err) {
-      setError((err as Error).message);
+      if ((err as Error).name === 'AbortError') {
+        if (active) await openConversation(active.id);
+      } else {
+        setError((err as Error).message);
+      }
     } finally {
+      abortRef.current = null;
       streamingRef.current = false;
       setStreaming(false);
     }
@@ -413,13 +471,22 @@ export function ChatApp() {
   function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setDraft('');
     if (streamingRef.current) {
       queueRef.current.push(trimmed);
       setQueue([...queueRef.current]);
+      setDraft('');
       return;
     }
+    if (!modelId) {
+      setError("Aucun modèle disponible : configure au moins une clé API dans le fichier .env");
+      return;
+    }
+    setDraft('');
     void run({ text: trimmed });
+  }
+
+  function stop() {
+    abortRef.current?.abort();
   }
 
   function regenerate() {
@@ -489,16 +556,7 @@ export function ChatApp() {
   const attachmentsFor = (messageId: string) =>
     attachments.filter((a) => a.message_id === messageId);
 
-  const suggestions = [
-    'Explique-moi un sujet complexe simplement',
-    'Aide-moi à écrire un texte',
-    'Compare deux options pour moi',
-    'Résume ce document (joins un fichier)',
-  ];
   const selectedBot = personas.find((persona) => persona.id === selectedBotId) ?? null;
-  const busyPersonaIds = new Set(
-    streaming && conversation?.persona_id ? [conversation.persona_id] : [],
-  );
   const streamingConversationId = streaming ? conversation?.id ?? null : null;
   const conversationsByBot = new Map<string, Conversation>();
   for (const item of conversations) {
@@ -525,6 +583,34 @@ export function ChatApp() {
     tagline: 'Ton espace de conversation',
     avatar: 'preset-hydra',
   };
+  const latestTool = toolEvents.at(-1);
+  const headerStatus = !streaming
+    ? headerPersona.tagline
+    : latestTool === 'web_search' && !liveText
+      ? 'cherche…'
+      : latestTool && !liveText
+        ? `${TOOL_LABELS[latestTool] ?? latestTool}…`
+        : 'écrit…';
+  const showWaiting = streaming && !liveText && !replySettled;
+  const lastAssistantId = [...messages].reverse().find((item) => item.role === 'assistant')?.id ?? null;
+
+  function toggleMessageActions(event: MouseEvent<HTMLElement>, messageId: string) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('button, a, summary, input')) return;
+    setOverlay((current) =>
+      current.kind === 'actions' && current.messageId === messageId
+        ? { kind: 'none' }
+        : { kind: 'actions', messageId },
+    );
+  }
+
+  function actionsClass(messageId: string) {
+    const open = overlay.kind === 'actions' && overlay.messageId === messageId;
+    return `mt-1 flex items-center gap-1 text-[11px] text-[var(--muted)] transition ${
+      open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+    }`;
+  }
 
   return (
     <div className="relative flex h-full min-h-0">
@@ -532,10 +618,9 @@ export function ChatApp() {
         Aller au chat
       </a>
       {sidebarOpen && (
-        <aside className="glass fixed inset-y-0 left-0 z-40 flex w-full max-w-[340px] shrink-0 flex-col border-r border-[var(--border)] shadow-2xl md:relative md:z-auto md:shadow-none">
-          <div className="flex items-center gap-2 px-5 py-4">
-            <Mascot avatar="preset-hydra" size={26} alt="Hydra" />
-            <span className="text-base font-bold tracking-tight">Hydra</span>
+        <aside className="glass fixed inset-0 z-40 flex w-full shrink-0 flex-col border-r border-[var(--border)] shadow-2xl md:relative md:inset-auto md:z-auto md:w-[340px] md:max-w-[340px] md:shadow-none">
+          <div className="flex items-center px-5 pb-1 pt-5">
+            <h1 className="text-[28px] font-bold tracking-tight">Messages</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="btn btn-icon ml-auto text-[var(--muted)] md:hidden"
@@ -545,8 +630,13 @@ export function ChatApp() {
               <IconSidebar />
             </button>
             <button
-              onClick={() => void newConversation({ personaId: conversation?.persona_id ?? null })}
-              className="btn btn-icon"
+              onClick={() => {
+                void (async () => {
+                  const created = await newConversation({ personaId: conversation?.persona_id ?? null });
+                  await openConversation(created.id);
+                })();
+              }}
+              className="btn btn-icon md:ml-auto"
               title="Nouvelle conversation"
               aria-label="Nouvelle conversation"
             >
@@ -556,8 +646,8 @@ export function ChatApp() {
 
           <div role="tablist" aria-label="Messages" className="flex border-b border-[var(--border)] px-5">
             {([
-              ['bots', 'Bots'],
               ['conversations', 'Conversations'],
+              ['bots', 'Bots'],
             ] as const).map(([tab, label]) => (
               <button
                 key={tab}
@@ -597,7 +687,6 @@ export function ChatApp() {
               <>
                 <div className="mb-3 flex gap-4 overflow-x-auto px-5 pb-1">
                   {filteredPersonas.map((persona) => {
-                    const busy = busyPersonaIds.has(persona.id);
                     const selected = selectedBotId === persona.id || conversation?.persona_id === persona.id;
                     return (
                       <button
@@ -614,7 +703,6 @@ export function ChatApp() {
                             </span>
                           )}
                           <Mascot avatar={persona.avatar} size={56} alt={persona.name} />
-                          <span className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[var(--background-2)] bg-[var(--success)] ${busy ? 'animate-pulse' : ''}`} />
                         </span>
                         <span className="max-w-full truncate">{persona.name}</span>
                       </button>
@@ -629,7 +717,6 @@ export function ChatApp() {
                   ) : (
                     filteredPersonas.map((persona) => {
                       const recent = conversationsByBot.get(persona.id);
-                      const busy = busyPersonaIds.has(persona.id);
                       return (
                         <button
                           key={persona.id}
@@ -641,12 +728,11 @@ export function ChatApp() {
                         >
                           <span className="relative shrink-0">
                             <Mascot avatar={persona.avatar} size={48} alt={persona.name} />
-                            <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--background-2)] bg-[var(--success)] ${busy ? 'animate-pulse' : ''}`} />
                           </span>
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-medium">{persona.name}</span>
                             <span className="block truncate text-xs text-[var(--muted)]">
-                              {recent ? `${recent.title} · ${relativeTime(recent.updated_at)}` : persona.tagline}
+                              {recent ? `${recent.title} · ${listTime(recent.updated_at)}` : persona.tagline}
                             </span>
                           </span>
                         </button>
@@ -678,11 +764,12 @@ export function ChatApp() {
                           title={item.title}
                         >
                           <Mascot avatar={persona?.avatar ?? 'preset-hydra'} size={40} alt={persona?.name ?? 'Hydra'} />
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{item.title}</span>
-                            <span className="block truncate text-xs text-[var(--muted)]">
-                              {persona?.name ?? 'Hydra'} · {relativeTime(item.updated_at)}
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-sm font-medium">{persona?.name ?? item.title}</span>
+                              <span className="shrink-0 text-xs text-[var(--muted)]">{listTime(item.updated_at)}</span>
                             </span>
+                            <span className="block truncate text-xs text-[var(--muted)]">{item.title}</span>
                           </span>
                         </button>
                         <button
@@ -727,108 +814,130 @@ export function ChatApp() {
       )}
 
       <main id="chat-main" className="flex min-w-0 flex-1 flex-col">
-        <header className="glass flex min-h-[66px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5">
+        <header className="glass relative z-30 flex min-h-[66px] items-center gap-3 border-b border-[var(--border)] px-4 py-2.5">
           {!sidebarOpen && (
-            <button onClick={() => setSidebarOpen(true)} className="btn btn-icon shrink-0" title="Afficher les messages">
-              <IconSidebar />
+            <button onClick={() => setSidebarOpen(true)} className="btn btn-icon shrink-0" title="Messages" aria-label="Messages">
+              <IconBack />
             </button>
           )}
-          <div className="relative shrink-0">
-            <Mascot avatar={headerPersona.avatar} size={40} alt={headerPersona.name} />
-            <span className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[var(--background-2)] bg-[var(--success)] ${streaming ? 'animate-pulse' : ''}`} />
-          </div>
+          <Mascot avatar={headerPersona.avatar} size={40} alt="" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{headerPersona.name}</div>
-            <div className="truncate text-xs text-[var(--muted)]">{headerPersona.tagline}</div>
+            <div className="truncate text-base font-semibold">{headerPersona.name}</div>
+            <div className={`truncate text-xs ${streaming ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'}`}>{headerStatus}</div>
           </div>
 
-          <div className="ml-auto flex min-w-0 items-center gap-1.5">
-            <select
-              value={modelId}
-              onChange={(event) => setModelId(event.target.value)}
-              aria-label="Modèle"
-              className="field max-w-[150px] min-w-0 truncate rounded-full py-1.5 text-xs"
-            >
-              {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
-              {availableModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={conversation?.persona_id ?? ''}
-              onChange={(event) => void setConversationPersona(event.target.value || null)}
-              disabled={!conversation}
-              aria-label="Persona"
-              className="field max-w-[130px] truncate rounded-full py-1.5 text-xs"
-            >
-              <option value="">Persona par défaut</option>
-              {personas.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.name}
-                </option>
-              ))}
-            </select>
-
-            {capabilities.webSearch && (
-              <button
-                onClick={() => setUseWeb(!useWeb)}
-                className={`btn btn-icon hidden sm:inline-flex ${useWeb ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Recherche web"
-                aria-pressed={useWeb}
-              >
-                <IconGlobe className="h-4 w-4" />
-              </button>
-            )}
-            {capabilities.imageGeneration && (
-              <button
-                onClick={() => setUseImages(!useImages)}
-                className={`btn btn-icon hidden sm:inline-flex ${useImages ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Génération d’images"
-                aria-pressed={useImages}
-              >
-                <IconImage className="h-4 w-4" />
-              </button>
-            )}
+          <div ref={menuRootRef} className="relative ml-auto shrink-0">
             <button
-              onClick={() =>
-                void newConversation({
-                  personaId: conversation?.persona_id ?? null,
-                  parentId: conversation?.parent_id ?? conversation?.id ?? null,
-                })
-              }
-              disabled={!conversation}
-              className="btn btn-icon text-[var(--muted)]"
-              title="Fil parallèle"
-              aria-label="Fil parallèle"
+              type="button"
+              onClick={() => setOverlay((current) => (current.kind === 'menu' ? { kind: 'none' } : { kind: 'menu' }))}
+              className="btn btn-icon ml-auto text-[var(--muted)]"
+              title="Options"
+              aria-label="Options"
+              aria-expanded={overlay.kind === 'menu'}
             >
-              <IconBranch className="h-4 w-4" />
+              <IconMore />
             </button>
-            {capabilities.voice && (
-              <button
-                onClick={() => setPanel(panel === 'voice' ? 'none' : 'voice')}
-                className={`btn btn-icon ${panel === 'voice' ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                title="Voix"
-                aria-label="Voix"
-              >
-                <IconVoice className="h-4 w-4" />
-              </button>
+            {overlay.kind === 'menu' && (
+              <div className="absolute right-0 top-full z-30 mt-2 flex w-60 flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-lg">
+                <select
+                  value={modelId}
+                  onChange={(event) => setModelId(event.target.value)}
+                  aria-label="Modèle"
+                  className="field w-full rounded-full py-1.5 text-xs"
+                >
+                  {availableModels.length === 0 && <option value="">Aucun modèle configuré</option>}
+                  {availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={conversation?.persona_id ?? ''}
+                  onChange={(event) => void setConversationPersona(event.target.value || null)}
+                  disabled={!conversation}
+                  aria-label="Persona"
+                  className="field w-full rounded-full py-1.5 text-xs"
+                >
+                  <option value="">Persona par défaut</option>
+                  {personas.map((persona) => (
+                    <option key={persona.id} value={persona.id}>
+                      {persona.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {capabilities.webSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setUseWeb(!useWeb)}
+                      className={`btn btn-icon ${useWeb ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Recherche web"
+                      aria-pressed={useWeb}
+                    >
+                      <IconGlobe className="h-4 w-4" />
+                    </button>
+                  )}
+                  {capabilities.imageGeneration && (
+                    <button
+                      type="button"
+                      onClick={() => setUseImages(!useImages)}
+                      className={`btn btn-icon ${useImages ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Génération d’images"
+                      aria-pressed={useImages}
+                    >
+                      <IconImage className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void newConversation({
+                        personaId: conversation?.persona_id ?? null,
+                        parentId: conversation?.parent_id ?? conversation?.id ?? null,
+                      })
+                    }
+                    disabled={!conversation}
+                    className="btn btn-icon text-[var(--muted)]"
+                    title="Fil parallèle"
+                    aria-label="Fil parallèle"
+                  >
+                    <IconBranch className="h-4 w-4" />
+                  </button>
+                  {capabilities.voice && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPanel(panel === 'voice' ? 'none' : 'voice');
+                        setOverlay({ kind: 'none' });
+                      }}
+                      className={`btn btn-icon ${panel === 'voice' ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                      title="Voix"
+                      aria-label="Voix"
+                    >
+                      <IconVoice className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!activePersona) return;
+                      setSelectedBotId(activePersona.id);
+                      setPanel(panel === 'computer' && selectedBotId === activePersona.id ? 'none' : 'computer');
+                      setOverlay({ kind: 'none' });
+                    }}
+                    disabled={!activePersona}
+                    className="btn btn-icon text-[var(--muted)]"
+                    title="Informations du compagnon"
+                    aria-label="Informations du compagnon"
+                  >
+                    <IconInfo className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             )}
-            <button
-              onClick={() => {
-                if (!activePersona) return;
-                setSelectedBotId(activePersona.id);
-                setPanel(panel === 'computer' && selectedBotId === activePersona.id ? 'none' : 'computer');
-              }}
-              disabled={!activePersona}
-              className="btn btn-icon text-[var(--muted)]"
-              title="Informations du compagnon"
-              aria-label="Informations du compagnon"
-            >
-              <IconInfo className="h-4 w-4" />
-            </button>
           </div>
         </header>
 
@@ -851,45 +960,40 @@ export function ChatApp() {
           <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-5 sm:py-8">
             {loadingConversation && <LoadingState label="Chargement de la conversation" />}
             {messages.length === 0 && !streaming && !initializing && !loadingConversation && (
-              <div className="fade-in mt-[12vh] text-center">
-                <Mascot avatar="preset-hydra" size={72} className="mx-auto mb-5" alt="Hydra" />
-                <h1 className="text-3xl font-semibold tracking-tight">Bonjour.</h1>
-                <p className="mx-auto mt-3 max-w-md text-sm text-[var(--muted)]">
-                  Un seul fil, plusieurs têtes. Change de modèle en pleine conversation : la
-                  mémoire, le persona et le ton suivent.
-                </p>
-                <div className="mt-7 flex flex-wrap justify-center gap-2">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => setDraft(suggestion)}
-                      className="card px-3 py-2 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-10">
-                  <div className="mb-3 text-xs uppercase tracking-wide text-[var(--muted)]">
-                    Tes compagnons
-                  </div>
-                  <BotGallery
-                    personas={personas}
-                    onChat={(id) => void startChatWithBot(id)}
-                    onVoice={(id) => void startVoiceWithBot(id)}
-                    onCreate={() => setPanel('persona')}
-                    onOpenComputer={selectBot}
-                  />
-                </div>
+              <div className="fade-in flex min-h-[46vh] flex-col items-center justify-center text-center">
+                <Mascot avatar={headerPersona.avatar} size={72} alt="" />
+                <h1 className="mt-3 text-lg font-semibold">{headerPersona.name}</h1>
+                <p className="mt-1 text-sm text-[var(--muted)]">{headerPersona.tagline}</p>
               </div>
             )}
 
-            {messages.map((message) =>
-              message.role === 'user' ? (
-                <article key={message.id} className="fade-in mb-3 flex justify-end">
+            {messages.map((message, index) => {
+              const previous = messages[index - 1];
+              const showDay = !previous || dayKey(previous.created_at) !== dayKey(message.created_at);
+              const day = showDay ? (
+                <p key={`day-${message.id}`} className="mb-3 mt-2 text-center text-xs text-[var(--muted)]">
+                  {dayLabel(message.created_at)}
+                </p>
+              ) : null;
+              return message.role === 'user' ? (
+                <div key={message.id}>
+                  {day}
+                <article className="fade-in group mb-3 flex justify-end" onClick={(event) => toggleMessageActions(event, message.id)}>
                   <div className="max-w-[78%]">
-                    <div className="bubble bubble-me whitespace-pre-wrap">{message.content}</div>
+                    <div className="bubble bubble-me whitespace-pre-wrap">
+                      {message.content}
+                      <time className="mt-1 block text-right text-[11px] text-white/75">{clockTime(message.created_at)}</time>
+                    </div>
+                    <div className={`${actionsClass(message.id)} justify-end`}>
+                      <button
+                        onClick={() => void navigator.clipboard.writeText(message.content)}
+                        className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
+                        title="Copier"
+                        aria-label="Copier"
+                      >
+                        <IconCopy className="h-3.5 w-3.5" /> Copier
+                      </button>
+                    </div>
                     <div className="mt-2 flex flex-wrap justify-end gap-2">
                       {attachmentsFor(message.id).map((attachment) =>
                         attachment.media_type.startsWith('image/') ? (
@@ -915,23 +1019,30 @@ export function ChatApp() {
                     </div>
                   </div>
                 </article>
+                </div>
               ) : (
-                <article key={message.id} className="fade-in group mb-3 flex items-end gap-2">
+                <div key={message.id}>
+                  {day}
+                <article
+                  className="fade-in group mb-3 flex items-end gap-2"
+                  onClick={(event) => toggleMessageActions(event, message.id)}
+                >
                   <Mascot
                     avatar={activePersona?.avatar ?? 'preset-hydra'}
-                    size={28}
-                    className="self-end"
-                    alt="Hydra"
+                    size={22}
+                    className="mb-1"
+                    alt=""
                   />
                   <div className="min-w-0 max-w-[82%]">
                     {message.reasoning && (
-                      <details className="card mb-3 p-3 text-xs text-[var(--muted)]">
+                      <details className="mb-1 text-xs text-[var(--muted)]">
                         <summary className="cursor-pointer select-none">Raisonnement</summary>
                         <pre className="mt-2 whitespace-pre-wrap">{message.reasoning}</pre>
                       </details>
                     )}
                     <div className="bubble bubble-them">
                       <Markdown>{message.content}</Markdown>
+                      <time className="mt-1 block text-right text-[11px] text-[var(--muted)]">{clockTime(message.created_at)}</time>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {attachmentsFor(message.id).map((attachment) =>
@@ -956,11 +1067,12 @@ export function ChatApp() {
                         ),
                       )}
                     </div>
-                    <div className="mt-2 flex items-center gap-1 text-[11px] text-[var(--muted)] opacity-0 transition group-hover:opacity-100">
+                    <div className={actionsClass(message.id)}>
                       <button
                         onClick={() => void navigator.clipboard.writeText(message.content)}
                         className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
                         title="Copier"
+                        aria-label="Copier"
                       >
                         <IconCopy className="h-3.5 w-3.5" /> Copier
                       </button>
@@ -969,54 +1081,42 @@ export function ChatApp() {
                           onClick={() => void speak(message.content)}
                           className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
                           title="Lire à voix haute"
+                          aria-label="Lire à voix haute"
                         >
                           <IconSpeaker className="h-3.5 w-3.5" /> Écouter
                         </button>
                       )}
-                      {message.model_id && <span className="ml-1">{message.model_id}</span>}
+                      {message.id === lastAssistantId && (
+                        <button
+                          onClick={regenerate}
+                          disabled={streaming}
+                          className="btn px-2 py-1 text-[11px] text-[var(--muted)]"
+                          title="Régénérer"
+                          aria-label="Régénérer"
+                        >
+                          <IconRefresh className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </article>
-              ),
-            )}
+                </div>
+              );
+            })}
 
-            {(liveReasoning || liveText || streaming) && (
+            {liveText && (
               <article className="fade-in mb-3 flex items-end gap-2">
-                <Mascot
-                  avatar={activePersona?.avatar ?? 'preset-hydra'}
-                  size={28}
-                  className="self-end"
-                  alt="Hydra"
-                />
-                <div className="min-w-0 max-w-[82%]">
-                  {toolEvents.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {toolEvents.map((name, index) => (
-                        <span key={index} className="chip">
-                          {TOOL_LABELS[name] ?? name}…
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {liveReasoning && (
-                    <details open className="card mb-3 p-3 text-xs text-[var(--muted)]">
-                      <summary className="cursor-pointer select-none">Raisonnement…</summary>
-                      <pre className="mt-2 whitespace-pre-wrap">{liveReasoning}</pre>
-                    </details>
-                  )}
-                  <div className="bubble bubble-them">
-                    {liveText ? (
-                      <Markdown>{liveText}</Markdown>
-                    ) : (
-                      <span className="dots">
-                        <span />
-                        <span />
-                        <span />
-                      </span>
-                    )}
-                  </div>
+                <Mascot avatar={activePersona?.avatar ?? 'preset-hydra'} size={22} className="mb-1" alt="" />
+                <div className="bubble bubble-them min-w-0 max-w-[82%]">
+                  <Markdown>{liveText}</Markdown>
                 </div>
               </article>
+            )}
+            {showWaiting && (
+              <div className="wait-mark" aria-live="polite" aria-label="En train d’écrire">
+                <span className="pip" />
+                <span>...</span>
+              </div>
             )}
 
             {error && <ErrorState message={error} onRetry={() => setError(null)} />}
@@ -1066,7 +1166,11 @@ export function ChatApp() {
               </button>
               <textarea
                 value={draft}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  event.target.style.height = 'auto';
+                  event.target.style.height = `${Math.min(event.target.scrollHeight, 192)}px`;
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
@@ -1074,11 +1178,7 @@ export function ChatApp() {
                   }
                 }}
                 rows={1}
-                placeholder={
-                  streaming
-                    ? 'Ajouter un message à la file…'
-                    : `Écris à ${activePersona?.name ?? 'Hydra'}…`
-                }
+                placeholder="Message…"
                 aria-label="Message"
                 className="max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] outline-none placeholder:text-[var(--muted)]"
               />
@@ -1092,28 +1192,27 @@ export function ChatApp() {
                   {recording ? <IconStop /> : <IconMic />}
                 </button>
               )}
-              <button
-                onClick={regenerate}
-                disabled={streaming || messages.length === 0}
-                className="btn btn-icon text-[var(--muted)]"
-                title="Régénérer la dernière réponse"
-                aria-label="Régénérer la dernière réponse"
-              >
-                <IconRefresh />
-              </button>
-              <button
-                onClick={() => send(draft)}
-                disabled={!draft.trim()}
-                className="btn btn-primary btn-icon"
-                title={streaming ? 'Mettre en file' : 'Envoyer'}
-                aria-label={streaming ? 'Mettre en file' : 'Envoyer'}
-              >
-                <IconArrowUp />
-              </button>
+              {streaming ? (
+                <button
+                  onClick={stop}
+                  className="btn btn-icon bg-[var(--foreground)] text-[var(--background)]"
+                  title="Arrêter"
+                  aria-label="Arrêter la réponse"
+                >
+                  <span className="block h-3 w-3 rounded-[2px] bg-[var(--background)]" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => send(draft)}
+                  disabled={!draft.trim()}
+                  className="btn btn-primary btn-icon"
+                  title="Envoyer"
+                  aria-label="Envoyer"
+                >
+                  <IconArrowUp />
+                </button>
+              )}
             </div>
-            <p className="mt-2 text-center text-[11px] text-[var(--muted)]">
-              Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne
-            </p>
           </div>
         </div>
       </main>
