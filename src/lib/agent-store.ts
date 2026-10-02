@@ -263,10 +263,16 @@ export function claimApproval(id: string): { approval: Approval | undefined; cla
   return { approval: getApproval(id), claimed: result.changes === 1 };
 }
 
-export function settleApproval(id: string, status: 'approved' | 'rejected' | 'failed', result: unknown): Approval | undefined {
+export function settleApproval(
+  id: string,
+  from: ApprovalStatus[],
+  status: 'approved' | 'rejected' | 'failed',
+  result: unknown,
+): Approval | undefined {
+  const marks = from.map(() => '?').join(', ');
   getDb()
-    .prepare(`UPDATE approvals SET status = ?, result_json = ?, resolved_at = ? WHERE id = ?`)
-    .run(status, JSON.stringify(result), now(), id);
+    .prepare(`UPDATE approvals SET status = ?, result_json = ?, resolved_at = ? WHERE id = ? AND status IN (${marks})`)
+    .run(status, JSON.stringify(result), now(), id, ...from);
   return getApproval(id);
 }
 

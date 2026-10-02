@@ -1,5 +1,5 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export function workspaceRoot(): string {
   return resolve(/*turbopackIgnore: true*/ process.env.HYDRA_WORKSPACE_DIR ?? './data/workspace');
@@ -7,11 +7,29 @@ export function workspaceRoot(): string {
 
 export function resolveInside(root: string, userPath: string): string | null {
   if (userPath.includes('\0')) return null;
-  const base = resolve(root);
+  mkdirSync(root, { recursive: true });
+  const base = realpathSync(root);
   const target = resolve(base, userPath);
   const rel = relative(base, target);
   if (rel.startsWith('..') || isAbsolute(rel)) return null;
-  return target;
+
+  let current = base;
+  for (const part of rel.split(sep).filter(Boolean)) {
+    const next = join(current, part);
+    if (!existsSync(next)) {
+      current = next;
+      continue;
+    }
+    if (lstatSync(next).isSymbolicLink()) {
+      const real = realpathSync(next);
+      const fromBase = relative(base, real);
+      if (fromBase.startsWith('..') || isAbsolute(fromBase)) return null;
+      current = real;
+      continue;
+    }
+    current = next;
+  }
+  return current;
 }
 
 export function ensureWorkspace(root = workspaceRoot()): string {

@@ -4,7 +4,7 @@ import { getAttachment, getDb } from './db';
 import { forgetMemories, handoffToPersona } from './agent-store';
 import { deleteWorkspace, ensureWorkspace, listWorkspace, readWorkspace, writeWorkspace, workspaceRoot } from './workspace';
 
-export const GATED_TOOLS = ['workspace_write', 'workspace_delete', 'workspace_shell', 'forget', 'update_artifact'] as const;
+export const GATED_TOOLS = ['workspace_write', 'workspace_delete', 'workspace_shell', 'forget', 'update_artifact', 'handoff'] as const;
 
 export function isGatedTool(name: string): boolean {
   return (GATED_TOOLS as readonly string[]).includes(name);

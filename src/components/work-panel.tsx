@@ -32,7 +32,7 @@ interface PersonaOption {
   name: string;
 }
 
-const TOOLS = ['workspace_write', 'workspace_delete', 'workspace_shell', 'forget', 'update_artifact', 'workspace_*'];
+const TOOLS = ['workspace_write', 'workspace_delete', 'workspace_shell', 'forget', 'update_artifact', 'handoff'];
 
 export function WorkPanel({
   personas,

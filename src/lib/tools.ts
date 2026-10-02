@@ -265,14 +265,14 @@ function computerTools(conversationId: string, personaId: string | null): ToolSe
       'Réécrit un artefact texte déjà généré dans cette conversation. Demande une approbation.',
       z.object({ attachmentId: z.string(), content: z.string() }),
     ),
-    handoff: tool({
-      description: `Transmet une tâche à un autre bot, qui la reçoit dans sa conversation. Bots : ${bots || 'aucun'}.`,
-      inputSchema: z.object({
+    handoff: gated(
+      'handoff',
+      `Transmet une tâche à un autre bot, qui la reçoit dans sa conversation. Bots : ${bots || 'aucun'}. Demande une approbation.`,
+      z.object({
         personaId: z.string(),
         note: z.string(),
       }),
-      execute: async (input) => executeAction('handoff', input, { conversationId }),
-    }),
+    ),
   };
 }
 

@@ -8,7 +8,6 @@ import {
   insertRoutineRun,
   listRoutines,
   markReminderNotified,
-  releaseRoutineClaim,
   routineSchedule,
 } from './agent-store';
 import { isDue } from './schedule';
@@ -108,8 +107,14 @@ export async function runDueRoutines(at = new Date()): Promise<{ id: string; sta
       });
       outcomes.push({ id: routine.id, status: 'succeeded' });
     } catch (error) {
-      releaseRoutineClaim(routine.id, routine.last_run_at);
-      finishRoutineRun(run.id, 'failed', (error as Error).message);
+      const message = (error as Error).message;
+      insertMessage({
+        id: nanoid(),
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: `La routine a échoué. ${message}`,
+      });
+      finishRoutineRun(run.id, 'failed', message);
       outcomes.push({ id: routine.id, status: 'failed' });
     }
   }

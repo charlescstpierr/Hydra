@@ -43,7 +43,7 @@ Chat multi-modèles self-hosted, dans l'esprit de Grokbot et de Muse : plusieurs
 **Travail des bots (Grok Bot / Muse)**
 - Compétences réutilisables, invoquées avec `/raccourci`.
 - Routines planifiées par bot, avec historique d’exécution. L’onglet ouvert appelle `POST /api/routines/tick` chaque minute. Un cron peut appeler la même route quand l’app est fermée.
-- Ordinateur partagé (`HYDRA_WORKSPACE_DIR`) : lecture, écriture, suppression, commande shell.
+- Ordinateur partagé (`HYDRA_WORKSPACE_DIR`) : lecture, écriture, suppression, commande shell. L’écriture, la suppression, le shell, l’oubli, la réécriture d’un artefact et le relais vers un autre bot attendent une approbation. Le shell tourne avec l’utilisateur du serveur. N’expose pas le port si la machine n’est pas à toi.
 - Approbations pour les actions sensibles, règles d’auto-revue (exiger l’emporte sur autoriser).
 - Relais d’une tâche vers un autre bot.
 - Oubli ciblé de la mémoire, après approbation.

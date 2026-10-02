@@ -7,14 +7,16 @@ export async function resolveApproval(id: string, decision: 'approve' | 'reject'
   if (existing.status === 'approved' || existing.status === 'rejected') return existing;
 
   if (decision === 'reject') {
-    const settled = settleApproval(id, 'rejected', { rejected: true });
+    const settled = settleApproval(id, ['pending', 'failed'], 'rejected', { rejected: true });
     if (!settled) throw new Error('Approbation introuvable');
-    insertActivity({
-      conversationId: settled.conversation_id,
-      kind: 'approval',
-      name: settled.tool,
-      detail: 'refusée',
-    });
+    if (settled.status === 'rejected') {
+      insertActivity({
+        conversationId: settled.conversation_id,
+        kind: 'approval',
+        name: settled.tool,
+        detail: 'refusée',
+      });
+    }
     return settled;
   }
 
@@ -26,7 +28,7 @@ export async function resolveApproval(id: string, decision: 'approve' | 'reject'
     const result = await executeAction(claimed.tool, JSON.parse(claimed.input_json), {
       conversationId: claimed.conversation_id,
     });
-    const settled = settleApproval(id, 'approved', result);
+    const settled = settleApproval(id, ['running'], 'approved', result);
     if (!settled) throw new Error('Approbation introuvable');
     insertActivity({
       conversationId: settled.conversation_id,
@@ -36,7 +38,7 @@ export async function resolveApproval(id: string, decision: 'approve' | 'reject'
     });
     return settled;
   } catch (error) {
-    const settled = settleApproval(id, 'failed', { error: (error as Error).message });
+    const settled = settleApproval(id, ['running'], 'failed', { error: (error as Error).message });
     if (!settled) throw error;
     return settled;
   }

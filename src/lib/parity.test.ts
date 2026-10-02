@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -50,6 +50,8 @@ test('l’ordinateur refuse les chemins qui sortent du dossier', async () => {
   assert.equal(resolveInside(base, 'notes/../../secret'), null);
   writeWorkspace('notes/plan.md', 'bonjour');
   assert.equal(readWorkspace('notes/plan.md'), 'bonjour');
+  symlinkSync('/etc/os-release', join(base, 'escape'));
+  assert.throws(() => readWorkspace('escape'));
 });
 
 test('recherche, oubli, copie de bot, approbation unique, rappel unique, claim de routine', async () => {
@@ -118,6 +120,28 @@ test('recherche, oubli, copie de bot, approbation unique, rappel unique, claim d
   };
   assert.equal(shell.code, 0);
   assert.equal(shell.output, 'hi');
+
+  const { buildTools } = await import('./tools');
+  const gated = buildTools({ conversationId: conversation.id, web: false, images: false });
+  const execute = gated.workspace_shell?.execute as
+    | ((input: { command: string }, options: { toolCallId: string; messages: []; context: undefined }) => Promise<{ status?: string }>)
+    | undefined;
+  const pending = await execute?.(
+    { command: 'printf secret' },
+    { toolCallId: 'call-shell', messages: [], context: undefined },
+  );
+  assert.equal(pending?.status, 'pending_approval');
+
+  const running = store.createApproval({
+    id: 'ap-running',
+    conversationId: conversation.id,
+    personaId: persona.id,
+    tool: 'workspace_write',
+    input: { path: 'nope.txt', content: 'non' },
+  });
+  assert.equal(store.claimApproval(running.id).claimed, true);
+  const rejectedLate = await resolveApproval(running.id, 'reject');
+  assert.equal(rejectedLate.status, 'running');
 
   const routine = store.createRoutine({
     id: 'rt-1',
