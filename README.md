@@ -60,6 +60,22 @@ docker compose up -d --build
 
 L'app écoute sur http://localhost:3000. Les données (SQLite + uploads) vivent dans le volume `hydra-data` monté sur `/data`.
 
+## Cloudflare
+
+Le même conteneur part sur Cloudflare Containers. Le Worker `cloudflare/hydra.ts` envoie tout le trafic vers une seule instance, pour que les utilisateurs partagent le fichier SQLite.
+
+Containers exige le plan Workers Paid. Un compte gratuit ou temporaire reçoit un 403 sur `/containers/me` après la construction de l'image.
+
+```bash
+npx wrangler login
+npx wrangler secret put XAI_API_KEY
+npx wrangler deploy --containers-rollout=immediate
+```
+
+Une clé de provider suffit. Les secrets du Worker sont injectés au démarrage du conteneur, ils ne sont pas dans l'image.
+
+Les conversations restent sur le disque du conteneur. Un snapshot est pris toutes les 10 minutes, et il ne se restaure que sur l'image qui l'a créé. Un nouveau déploiement change l'image, donc les fils et les uploads repartent de zéro. L'instance s'endort après 6 heures sans requête.
+
 ## Démarrage local
 
 ```bash
