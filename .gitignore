@@ -36,6 +36,7 @@ yarn-error.log*
 
 # local data (sqlite + uploads)
 /data
+.audit
 
 # vercel
 .vercel

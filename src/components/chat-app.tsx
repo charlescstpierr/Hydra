@@ -9,6 +9,7 @@ import {
   IconClip,
   IconCopy,
   IconCompose,
+  IconDocument,
   IconGlobe,
   IconImage,
   IconInfo,
@@ -39,6 +40,7 @@ import type { ModelInfo } from '@/lib/models';
 import { readEventStream } from '@/lib/sse';
 import type { VoiceInfo } from '@/lib/voice';
 import { ErrorState, LoadingState } from '@/components/ui';
+import { WorkPanel } from '@/components/work-panel';
 
 interface Capabilities {
   webSearch: boolean;
@@ -67,7 +69,48 @@ const TOOL_LABELS: Record<string, string> = {
   create_artifact: 'création d’artefact',
   create_podcast: 'production audio',
   set_reminder: 'rappel programmé',
+  workspace_list: 'lecture de l’ordinateur',
+  workspace_read: 'lecture de fichier',
+  workspace_write: 'écriture',
+  workspace_delete: 'suppression',
+  workspace_shell: 'commande',
+  forget: 'oubli',
+  update_artifact: 'mise à jour d’artefact',
+  handoff: 'relais',
 };
+
+interface ActivityItem {
+  id: string;
+  kind: string;
+  name: string;
+  detail: string;
+  created_at: string;
+}
+
+interface ReactionItem {
+  message_id: string;
+  emoji: string;
+}
+
+interface ApprovalItem {
+  id: string;
+  tool: string;
+  status: string;
+  input_json: string;
+}
+
+interface SkillItem {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+interface SearchHit {
+  messageId: string;
+  conversationId: string;
+  title: string;
+  excerpt: string;
+}
 
 type SidebarTab = 'bots' | 'conversations';
 
@@ -133,8 +176,15 @@ export function ChatApp() {
   const [useWeb, setUseWeb] = useState(true);
   const [useImages, setUseImages] = useState(true);
   const [panel, setPanel] = useState<
-    'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library' | 'computer'
+    'none' | 'memory' | 'persona' | 'voice' | 'reminders' | 'library' | 'computer' | 'work'
   >('none');
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [reactions, setReactions] = useState<ReactionItem[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const [overlay, setOverlay] = useState<ThreadOverlay>({ kind: 'none' });
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -195,6 +245,9 @@ export function ChatApp() {
       memories: Memory[];
       attachments: Attachment[];
       sideChats: Conversation[];
+      activities: ActivityItem[];
+      reactions: ReactionItem[];
+      approvals: ApprovalItem[];
     };
     setConversation(data.conversation);
     setSelectedBotId(data.conversation.persona_id);
@@ -202,6 +255,9 @@ export function ChatApp() {
     setMemories(data.memories);
     setAttachments(data.attachments);
     setSideChats(data.sideChats);
+    setActivities(data.activities ?? []);
+    setReactions(data.reactions ?? []);
+    setApprovals(data.approvals ?? []);
     setLiveText('');
     setLiveReasoning('');
     setToolEvents([]);
@@ -211,8 +267,37 @@ export function ChatApp() {
   }, []);
 
   useEffect(() => {
-    if (window.matchMedia('(min-width: 768px)').matches) setSidebarOpen(true);
+    const timer = window.setTimeout(() => {
+      if (window.matchMedia('(min-width: 768px)').matches) setSidebarOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      void fetch('/api/routines/tick', { method: 'POST' });
+    };
+    tick();
+    const timer = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    void fetch('/api/skills')
+      .then((res) => (res.ok ? res.json() : { skills: [] }))
+      .then((data: { skills: SkillItem[] }) => setSkills(data.skills));
+  }, [panel]);
+
+  useEffect(() => {
+    const query = sidebarQuery.trim();
+    if (query.length < 2) return;
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/search?q=${encodeURIComponent(query)}`)
+        .then((res) => (res.ok ? res.json() : { hits: [] }))
+        .then((data: { hits: SearchHit[] }) => setSearchHits(data.hits));
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [sidebarQuery]);
 
   useEffect(() => {
     if (overlay.kind !== 'menu') return;
@@ -298,7 +383,6 @@ export function ChatApp() {
     return created;
   }
 
-  /** Opens a fresh thread with a bot, including its greeting message. */
   async function startChatWithBot(personaId: string, options?: { keepPanel?: boolean }) {
     const created = await newConversation({ personaId, usePersonaModel: true });
     await openConversation(created.id);
@@ -386,6 +470,7 @@ export function ChatApp() {
     setToolEvents([]);
     setDraft('');
     setPending([]);
+    setReplyTo(null);
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -403,6 +488,7 @@ export function ChatApp() {
           modelId,
           text: options.text,
           attachmentIds,
+          replyToId: replyTo?.id,
           regenerateFromSeq: options.regenerateFromSeq,
           webSearch: useWeb,
           imageGeneration: useImages,
@@ -467,7 +553,6 @@ export function ChatApp() {
     }
   }
 
-  /** Messages sent while Hydra is still answering are queued instead of dropped. */
   function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -551,6 +636,62 @@ export function ChatApp() {
     }
     const audio = new Audio(URL.createObjectURL(await res.blob()));
     void audio.play();
+  }
+
+  async function react(messageId: string, emoji: string) {
+    const res = await fetch(`/api/messages/${messageId}/reactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emoji }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { reactions: ReactionItem[] };
+    setReactions((current) => [...current.filter((item) => item.message_id !== messageId), ...data.reactions]);
+  }
+
+  async function decide(id: string, decision: 'approve' | 'reject') {
+    const res = await fetch(`/api/approvals/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    });
+    if (!res.ok) {
+      setError(((await res.json()) as { error?: string }).error ?? 'Décision impossible');
+      return;
+    }
+    if (conversation) await openConversation(conversation.id);
+    setToast(decision === 'approve' ? 'Action approuvée' : 'Action refusée');
+  }
+
+  function attachmentNode(attachment: Attachment) {
+    if (attachment.media_type.startsWith('image/')) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={attachment.id}
+          src={`/api/files/${attachment.id}`}
+          alt={attachment.name}
+          className="max-h-72 rounded-xl border border-[var(--border)]"
+        />
+      );
+    }
+    if (attachment.media_type === 'text/html' || attachment.name.endsWith('.html')) {
+      return (
+        <button
+          key={attachment.id}
+          type="button"
+          className="chip"
+          onClick={() => setPreview({ url: `/api/files/${attachment.id}`, name: attachment.name })}
+        >
+          Aperçu {attachment.name}
+        </button>
+      );
+    }
+    return (
+      <a key={attachment.id} href={`/api/files/${attachment.id}`} target="_blank" rel="noreferrer" className="chip">
+        <IconClip className="h-3.5 w-3.5" /> {attachment.name}
+      </a>
+    );
   }
 
   const attachmentsFor = (messageId: string) =>
@@ -656,6 +797,7 @@ export function ChatApp() {
                 onClick={() => {
                   setSidebarTab(tab);
                   setSidebarQuery('');
+                  setSearchHits([]);
                 }}
                 className={`relative flex-1 px-2 pb-3 pt-1 text-sm font-semibold ${
                   sidebarTab === tab ? 'text-[var(--foreground)]' : 'text-[var(--muted)]'
@@ -674,7 +816,10 @@ export function ChatApp() {
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
               <input
                 value={sidebarQuery}
-                onChange={(event) => setSidebarQuery(event.target.value)}
+                onChange={(event) => {
+                  setSidebarQuery(event.target.value);
+                  if (event.target.value.trim().length < 2) setSearchHits([]);
+                }}
                 placeholder="Rechercher"
                 aria-label="Rechercher"
                 className="field w-full rounded-full py-2 pl-9 pr-3"
@@ -788,6 +933,23 @@ export function ChatApp() {
               </div>
             )}
           </div>
+
+          {searchHits.length > 0 && (
+            <div className="border-t border-[var(--border)] px-3 py-2">
+              <p className="mb-1 text-[11px] text-[var(--muted)]">Messages</p>
+              {searchHits.map((hit) => (
+                <button
+                  key={hit.messageId}
+                  type="button"
+                  onClick={() => void openConversation(hit.conversationId)}
+                  className="block w-full truncate py-1 text-left text-xs"
+                >
+                  <span className="font-medium">{hit.title}</span>
+                  <span className="text-[var(--muted)]"> · {hit.excerpt}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="grid grid-cols-4 gap-1 border-t border-[var(--border)] p-2">
             {[
@@ -935,6 +1097,15 @@ export function ChatApp() {
                   >
                     <IconInfo className="h-4 w-4" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setPanel(panel === 'work' ? 'none' : 'work')}
+                    className={`btn btn-icon ${panel === 'work' ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+                    title="Compétences et routines"
+                    aria-label="Compétences et routines"
+                  >
+                    <IconDocument className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             )}
@@ -958,6 +1129,18 @@ export function ChatApp() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-5 sm:py-8">
+            {activities.length > 0 && (
+              <details className="mb-4 text-xs text-[var(--muted)]">
+                <summary className="cursor-pointer">Journal d’activité</summary>
+                <ul className="mt-2 space-y-1">
+                  {activities.slice(-8).map((item) => (
+                    <li key={item.id}>
+                      {item.kind} · {item.name}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
             {loadingConversation && <LoadingState label="Chargement de la conversation" />}
             {messages.length === 0 && !streaming && !initializing && !loadingConversation && (
               <div className="fade-in flex min-h-[46vh] flex-col items-center justify-center text-center">
@@ -981,6 +1164,11 @@ export function ChatApp() {
                 <article className="fade-in group mb-3 flex justify-end" onClick={(event) => toggleMessageActions(event, message.id)}>
                   <div className="max-w-[78%]">
                     <div className="bubble bubble-me whitespace-pre-wrap">
+                      {message.reply_to_id && (
+                        <p className="mb-1 line-clamp-2 text-[11px] text-white/75">
+                          {messages.find((item) => item.id === message.reply_to_id)?.content}
+                        </p>
+                      )}
                       {message.content}
                       <time className="mt-1 block text-right text-[11px] text-white/75">{clockTime(message.created_at)}</time>
                     </div>
@@ -993,29 +1181,20 @@ export function ChatApp() {
                       >
                         <IconCopy className="h-3.5 w-3.5" /> Copier
                       </button>
+                      <button type="button" onClick={() => setReplyTo(message)} className="btn px-2 py-1 text-[11px] text-[var(--muted)]" aria-label="Répondre">
+                        Répondre
+                      </button>
+                      <button type="button" onClick={() => void react(message.id, '👍')} className="btn px-2 py-1 text-[11px]" aria-label="Réagir">
+                        👍
+                      </button>
+                    </div>
+                    <div className="mt-1 flex justify-end gap-1 text-xs">
+                      {reactions.filter((item) => item.message_id === message.id).map((item) => (
+                        <span key={item.emoji}>{item.emoji}</span>
+                      ))}
                     </div>
                     <div className="mt-2 flex flex-wrap justify-end gap-2">
-                      {attachmentsFor(message.id).map((attachment) =>
-                        attachment.media_type.startsWith('image/') ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={attachment.id}
-                            src={`/api/files/${attachment.id}`}
-                            alt={attachment.name}
-                            className="max-h-56 rounded-xl border border-[var(--border)]"
-                          />
-                        ) : (
-                          <a
-                            key={attachment.id}
-                            href={`/api/files/${attachment.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="chip"
-                          >
-                            <IconClip className="h-3.5 w-3.5" /> {attachment.name}
-                          </a>
-                        ),
-                      )}
+                      {attachmentsFor(message.id).map((attachment) => attachmentNode(attachment))}
                     </div>
                   </div>
                 </article>
@@ -1041,31 +1220,21 @@ export function ChatApp() {
                       </details>
                     )}
                     <div className="bubble bubble-them">
+                      {message.reply_to_id && (
+                        <p className="mb-1 line-clamp-2 text-[11px] text-[var(--muted)]">
+                          {messages.find((item) => item.id === message.reply_to_id)?.content}
+                        </p>
+                      )}
                       <Markdown>{message.content}</Markdown>
                       <time className="mt-1 block text-right text-[11px] text-[var(--muted)]">{clockTime(message.created_at)}</time>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {attachmentsFor(message.id).map((attachment) =>
-                        attachment.media_type.startsWith('image/') ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={attachment.id}
-                            src={`/api/files/${attachment.id}`}
-                            alt={attachment.name}
-                            className="max-h-72 rounded-xl border border-[var(--border)]"
-                          />
-                        ) : (
-                          <a
-                            key={attachment.id}
-                            href={`/api/files/${attachment.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="chip"
-                          >
-                            <IconClip className="h-3.5 w-3.5" /> {attachment.name}
-                          </a>
-                        ),
-                      )}
+                      {attachmentsFor(message.id).map((attachment) => attachmentNode(attachment))}
+                    </div>
+                    <div className="mt-1 flex gap-1 text-xs">
+                      {reactions.filter((item) => item.message_id === message.id).map((item) => (
+                        <span key={item.emoji}>{item.emoji}</span>
+                      ))}
                     </div>
                     <div className={actionsClass(message.id)}>
                       <button
@@ -1075,6 +1244,12 @@ export function ChatApp() {
                         aria-label="Copier"
                       >
                         <IconCopy className="h-3.5 w-3.5" /> Copier
+                      </button>
+                      <button type="button" onClick={() => setReplyTo(message)} className="btn px-2 py-1 text-[11px] text-[var(--muted)]" aria-label="Répondre">
+                        Répondre
+                      </button>
+                      <button type="button" onClick={() => void react(message.id, '👍')} className="btn px-2 py-1 text-[11px]" aria-label="Réagir">
+                        👍
                       </button>
                       {capabilities.voice && (
                         <button
@@ -1104,6 +1279,12 @@ export function ChatApp() {
               );
             })}
 
+            {liveReasoning && (
+              <details className="mb-2 text-xs text-[var(--muted)]" open>
+                <summary className="cursor-pointer">Raisonnement</summary>
+                <pre className="mt-2 whitespace-pre-wrap">{liveReasoning}</pre>
+              </details>
+            )}
             {liveText && (
               <article className="fade-in mb-3 flex items-end gap-2">
                 <Mascot avatar={activePersona?.avatar ?? 'preset-hydra'} size={22} className="mb-1" alt="" />
@@ -1126,6 +1307,28 @@ export function ChatApp() {
 
         <div className="px-4 pb-5">
           <div className="mx-auto w-full max-w-3xl">
+            {approvals
+              .filter((item) => item.status === 'pending' || item.status === 'failed')
+              .map((item) => (
+                <div key={item.id} className="card mb-2 flex flex-wrap items-center gap-2 p-2 text-xs">
+                  <span className="font-medium">{TOOL_LABELS[item.tool] ?? item.tool}</span>
+                  <span className="text-[var(--muted)]">{item.status === 'failed' ? 'échec' : 'en attente'}</span>
+                  <button type="button" className="btn btn-primary px-2 py-1" onClick={() => void decide(item.id, 'approve')}>
+                    Approuver
+                  </button>
+                  <button type="button" className="btn px-2 py-1" onClick={() => void decide(item.id, 'reject')}>
+                    Refuser
+                  </button>
+                </div>
+              ))}
+            {replyTo && (
+              <div className="mb-2 flex items-center gap-2 text-xs text-[var(--muted)]">
+                <span className="min-w-0 flex-1 truncate">Réponse à {replyTo.content}</span>
+                <button type="button" className="btn px-2 py-1" onClick={() => setReplyTo(null)} aria-label="Annuler la réponse">
+                  Annuler
+                </button>
+              </div>
+            )}
             {queue.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {queue.map((text, index) => (
@@ -1144,6 +1347,27 @@ export function ChatApp() {
                 ))}
               </div>
             )}
+            {(() => {
+              const match = draft.match(/(?:^|\s)\/([a-z0-9-]*)$/);
+              if (!match) return null;
+              const query = match[1] ?? '';
+              const hits = skills.filter((skill) => skill.slug.startsWith(query)).slice(0, 6);
+              if (hits.length === 0) return null;
+              return (
+                <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
+                  {hits.map((skill) => (
+                    <button
+                      key={skill.id}
+                      type="button"
+                      className="block w-full rounded-lg px-2 py-1 text-left text-sm hover:bg-[var(--surface-2)]"
+                      onClick={() => setDraft(draft.replace(/\/[a-z0-9-]*$/, `/${skill.slug} `))}
+                    >
+                      /{skill.slug} <span className="text-[var(--muted)]">{skill.name}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="composer flex items-end gap-1.5 rounded-full border-[var(--border)] p-1.5">
               <input
                 ref={fileInputRef}
@@ -1256,6 +1480,26 @@ export function ChatApp() {
         <RemindersPanel conversationId={conversation?.id ?? null} onClose={() => setPanel('none')} />
       )}
       {panel === 'library' && <LibraryPanel onClose={() => setPanel('none')} />}
+      {panel === 'work' && (
+        <WorkPanel
+          personas={personas.map((persona) => ({ id: persona.id, name: persona.name }))}
+          activePersonaId={conversation?.persona_id ?? null}
+          onClose={() => setPanel('none')}
+        />
+      )}
+      {preview && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={preview.name}>
+          <div className="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-[var(--surface)]">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
+              <span className="truncate text-sm">{preview.name}</span>
+              <button type="button" className="btn px-2 py-1 text-xs" onClick={() => setPreview(null)} aria-label="Fermer l’aperçu">
+                Fermer
+              </button>
+            </div>
+            <iframe title={preview.name} src={preview.url} sandbox="" className="h-full w-full bg-white" />
+          </div>
+        </div>
+      )}
       {panel === 'computer' && selectedBot && (
         <BotComputer
           persona={selectedBot}
@@ -1269,6 +1513,7 @@ export function ChatApp() {
             setSelectedBotId(personaId);
             setPanel('persona');
           }}
+          onPersonasChange={() => void refreshPersonas()}
           onClose={() => setPanel('none')}
         />
       )}

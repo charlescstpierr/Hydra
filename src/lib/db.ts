@@ -9,7 +9,6 @@ export interface Conversation {
   title: string;
   persona: string;
   persona_id: string | null;
-  /** Side chats hang off a main conversation and share its memory. */
   parent_id: string | null;
   summary: string | null;
   summary_upto_seq: number;
@@ -27,6 +26,7 @@ export interface Message {
   reasoning: string | null;
   model_id: string | null;
   provider: string | null;
+  reply_to_id: string | null;
   created_at: string;
 }
 
@@ -37,9 +37,7 @@ export interface Persona {
   avatar: string | null;
   tagline: string;
   instructions: string;
-  /** First assistant message sent when a conversation with this bot starts. */
   greeting: string | null;
-  /** Comma-separated tone traits picked in the bot studio. */
   tone: string | null;
   preferred_model: string | null;
   voice: string | null;
@@ -56,7 +54,6 @@ export interface Attachment {
   conversation_id: string | null;
   message_id: string | null;
   kind: AttachmentKind;
-  /** `upload` comes from the user, `generated` is an artifact Hydra produced. */
   origin: 'upload' | 'generated';
   name: string;
   media_type: string;
@@ -78,9 +75,9 @@ export interface Reminder {
   conversation_id: string | null;
   title: string;
   details: string | null;
-  /** ISO timestamp at which the reminder becomes due. */
   due_at: string;
   status: 'pending' | 'done' | 'cancelled';
+  notified_at: string | null;
   created_at: string;
 }
 
@@ -176,6 +173,66 @@ export function getDb(): Database.Database {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      instructions TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS routines (
+      id TEXT PRIMARY KEY,
+      persona_id TEXT NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      instructions TEXT NOT NULL,
+      schedule TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      last_run_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS routine_runs (
+      id TEXT PRIMARY KEY,
+      routine_id TEXT NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      summary TEXT,
+      conversation_id TEXT,
+      started_at TEXT NOT NULL,
+      finished_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS approvals (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      persona_id TEXT,
+      tool TEXT NOT NULL,
+      input_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      result_json TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS approvals_conversation ON approvals(conversation_id, status);
+
+    CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      message_id TEXT,
+      kind TEXT NOT NULL,
+      name TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS activities_conversation ON activities(conversation_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS reactions (
+      message_id TEXT NOT NULL,
+      emoji TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (message_id, emoji)
+    );
   `);
   migrate(db);
   db.pragma('foreign_keys = ON');
@@ -183,7 +240,6 @@ export function getDb(): Database.Database {
   return db;
 }
 
-/** Adds columns introduced after a database was first created. */
 function migrate(database: Database.Database): void {
   const additions: [table: string, column: string, definition: string][] = [
     ['personas', 'avatar', 'TEXT'],
@@ -194,6 +250,8 @@ function migrate(database: Database.Database): void {
     ['personas', 'voice_language', 'TEXT'],
     ['conversations', 'parent_id', 'TEXT'],
     ['attachments', 'origin', "TEXT NOT NULL DEFAULT 'upload'"],
+    ['messages', 'reply_to_id', 'TEXT'],
+    ['reminders', 'notified_at', 'TEXT'],
   ];
 
   for (const [table, column, definition] of additions) {
@@ -261,7 +319,6 @@ export function updateConversation(
     .run(...fields.map((f) => patch[f] ?? null), now(), id);
 }
 
-/** A side chat shares the memory of its parent, so memory lookups follow the chain. */
 export function memoryRootId(conversationId: string): string {
   let current = getConversation(conversationId);
   const seen = new Set<string>();
@@ -308,13 +365,14 @@ export function insertMessage(input: {
   reasoning?: string | null;
   modelId?: string | null;
   provider?: string | null;
+  replyToId?: string | null;
 }): Message {
   const seq = nextSeq(input.conversationId);
   const ts = now();
   getDb()
     .prepare(
-      `INSERT INTO messages (id, conversation_id, seq, role, content, reasoning, model_id, provider, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO messages (id, conversation_id, seq, role, content, reasoning, model_id, provider, reply_to_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.id,
@@ -325,6 +383,7 @@ export function insertMessage(input: {
       input.reasoning ?? null,
       input.modelId ?? null,
       input.provider ?? null,
+      input.replyToId ?? null,
       ts,
     );
   getDb().prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(ts, input.conversationId);

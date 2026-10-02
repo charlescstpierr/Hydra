@@ -65,6 +65,7 @@ export function BotComputer({
   onNewConversation,
   onVoice,
   onEditBot,
+  onPersonasChange,
   onClose,
 }: {
   persona: Persona;
@@ -75,6 +76,7 @@ export function BotComputer({
   onNewConversation: (personaId: string) => void;
   onVoice: (personaId: string) => void;
   onEditBot: (personaId: string) => void;
+  onPersonasChange: () => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('conversations');
@@ -329,6 +331,34 @@ export function BotComputer({
               </div>
               <button type="button" onClick={() => onEditBot(persona.id)} className="btn btn-outline w-full">
                 Modifier dans le studio
+              </button>
+              <button
+                type="button"
+                className="btn w-full"
+                onClick={() => {
+                  void fetch(`/api/personas/${persona.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'duplicate' }),
+                  }).then(() => onPersonasChange());
+                }}
+              >
+                Dupliquer le bot
+              </button>
+              <button
+                type="button"
+                className="btn w-full"
+                onClick={() => {
+                  void fetch(`/api/personas/${persona.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'export' }),
+                  })
+                    .then((res) => res.json())
+                    .then((data) => navigator.clipboard.writeText(JSON.stringify(data.persona, null, 2)));
+                }}
+              >
+                Copier la fiche partageable
               </button>
             </div>
           )}

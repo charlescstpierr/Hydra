@@ -1,3 +1,4 @@
+import { duplicatePersona, publicPersona } from '@/lib/agent-store';
 import { deletePersona, getPersona, updatePersona } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,20 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   });
 
   return Response.json({ persona: getPersona(id) });
+}
+
+export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const body = (await request.json().catch(() => ({}))) as { action?: string };
+  const persona = getPersona(id);
+  if (!persona) return Response.json({ error: 'Persona introuvable' }, { status: 404 });
+  if (body.action === 'duplicate') {
+    return Response.json({ persona: duplicatePersona(id) }, { status: 201 });
+  }
+  if (body.action === 'export') {
+    return Response.json({ persona: publicPersona(persona) });
+  }
+  return Response.json({ error: 'Action inconnue' }, { status: 400 });
 }
 
 export async function DELETE(_request: Request, ctx: { params: Promise<{ id: string }> }) {
