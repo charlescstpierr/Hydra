@@ -15,11 +15,14 @@ import {
   listAttachments,
   listMemories,
   listMessages,
+  listPersonas,
   listReminders,
   memoryRootId,
   updateConversation,
   type Message,
 } from '@/lib/db';
+import { getSkillBySlug, insertActivity } from '@/lib/agent-store';
+import { slashTokens } from '@/lib/mentions';
 import { generateTitle, runPostTurnTasks } from '@/lib/memory';
 import { parseModelId, resolveModel } from '@/lib/models';
 import { buildTools } from '@/lib/tools';
@@ -30,10 +33,10 @@ export const maxDuration = 300;
 interface ChatRequest {
   conversationId: string;
   modelId: string;
-  /** New user message. Omitted when regenerating the last assistant turn. */
   text?: string;
   attachmentIds?: string[];
-  /** Drop every message from this sequence number on before generating again. */
+  replyToId?: string;
+  skillSlugs?: string[];
   regenerateFromSeq?: number;
   webSearch?: boolean;
   imageGeneration?: boolean;
@@ -64,11 +67,19 @@ export async function POST(request: Request) {
       conversationId: conversation.id,
       role: 'user',
       content: body.text.trim(),
+      replyToId: body.replyToId ?? null,
     });
     if (body.attachmentIds?.length) {
       attachToMessage(body.attachmentIds, userMessage.id, conversation.id);
     }
   }
+
+  const slugs = [
+    ...new Set([...(body.skillSlugs ?? []), ...slashTokens(body.text ?? '')]),
+  ];
+  const skills = slugs
+    .map((slug) => getSkillBySlug(slug))
+    .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill));
 
   const isFirstTurn = listMessages(conversation.id).length <= 1;
   updateConversation(conversation.id, { default_model: body.modelId });
@@ -84,10 +95,13 @@ export async function POST(request: Request) {
     activeModelId: body.modelId,
     parent: conversation.parent_id ? getConversation(conversation.parent_id) : null,
     reminders: listReminders('pending'),
+    skills,
+    peers: listPersonas().filter((persona) => persona.id !== conversation.persona_id),
   });
 
   const tools = buildTools({
     conversationId: conversation.id,
+    personaId: conversation.persona_id,
     web: body.webSearch !== false,
     images: body.imageGeneration !== false,
   });
@@ -128,6 +142,12 @@ export async function POST(request: Request) {
               break;
             case 'tool-call':
               send('tool', { name: part.toolName, input: part.input });
+              insertActivity({
+                conversationId: conversation.id,
+                kind: 'tool',
+                name: part.toolName,
+                detail: JSON.stringify(part.input).slice(0, 500),
+              });
               break;
             case 'tool-result':
               send('tool-result', { name: part.toolName, output: part.output });
@@ -160,7 +180,6 @@ export async function POST(request: Request) {
         await runPostTurnTasks(conversation.id);
         send('refresh', { conversation: getConversation(conversation.id) });
       } catch {
-        // Background memory work must never break a completed answer.
       }
 
       controller.close();

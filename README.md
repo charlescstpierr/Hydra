@@ -36,7 +36,20 @@ Chat multi-modèles self-hosted, dans l'esprit de Grokbot et de Muse : plusieurs
 **Conversation**
 - Fils parallèles (side chats) rattachés à une conversation, avec mémoire partagée.
 - File de messages : tu peux envoyer pendant qu'Hydra répond, les messages sont traités à la suite.
+- Réponse à un message, réactions, recherche dans les messages.
 - Upload de fichiers, vision, PDF, texte, Markdown.
+- Aperçu des artefacts HTML.
+
+**Travail des bots (Grok Bot / Muse)**
+- Compétences réutilisables, invoquées avec `/raccourci`.
+- Routines planifiées par bot, avec historique d’exécution. L’onglet ouvert appelle `POST /api/routines/tick` chaque minute. Un cron peut appeler la même route quand l’app est fermée.
+- Ordinateur partagé (`HYDRA_WORKSPACE_DIR`) : lecture, écriture, suppression, commande shell. L’écriture, la suppression, le shell, l’oubli, la réécriture d’un artefact et le relais vers un autre bot attendent une approbation. Le shell tourne avec l’utilisateur du serveur. N’expose pas le port si la machine n’est pas à toi.
+- Approbations pour les actions sensibles, règles d’auto-revue (exiger l’emporte sur autoriser).
+- Relais d’une tâche vers un autre bot.
+- Oubli ciblé de la mémoire, après approbation.
+- Rappels dus déposés dans la conversation.
+- Duplication d’un bot (profil seulement) et export de sa fiche.
+- Journal d’activité dans le fil.
 
 ## Démarrage rapide (Docker)
 

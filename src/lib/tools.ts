@@ -3,10 +3,13 @@ import { createXai } from '@ai-sdk/xai';
 import { generateImage, tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { insertReminder } from './db';
+import { insertReminder, listPersonas } from './db';
 import { attachmentUrl, storeFile } from './files';
 import { providerAvailable } from './models';
 import { synthesize, voiceAvailable } from './voice';
+import { executeAction, isGatedTool } from './actions';
+import { createApproval, loadReviewRules } from './agent-store';
+import { decisionFor } from './review-rules';
 
 export const webSearchAvailable = () => Boolean(process.env.TAVILY_API_KEY);
 export const imageGenerationAvailable = () =>
@@ -192,14 +195,97 @@ function reminderTool(conversationId: string) {
   });
 }
 
+function gateOrRun(
+  name: string,
+  conversationId: string,
+  personaId: string | null,
+  input: unknown,
+) {
+  if (decisionFor(name, loadReviewRules(), isGatedTool(name)) === 'require') {
+    const approval = createApproval({
+      id: nanoid(),
+      conversationId,
+      personaId,
+      tool: name,
+      input,
+    });
+    return { status: 'pending_approval' as const, approvalId: approval.id, tool: name };
+  }
+  return null;
+}
+
+function computerTools(conversationId: string, personaId: string | null): ToolSet {
+  const bots = listPersonas()
+    .map((persona) => `${persona.name} (${persona.id})`)
+    .join(', ');
+  const gated = (name: string, description: string, schema: z.ZodType) =>
+    tool({
+      description,
+      inputSchema: schema,
+      execute: async (input) => {
+        const pending = gateOrRun(name, conversationId, personaId, input);
+        if (pending) return pending;
+        return executeAction(name, input, { conversationId });
+      },
+    });
+
+  return {
+    workspace_list: tool({
+      description: 'Liste les fichiers de l’ordinateur partagé des bots.',
+      inputSchema: z.object({ path: z.string().default('.') }),
+      execute: async (input) => executeAction('workspace_list', input, { conversationId }),
+    }),
+    workspace_read: tool({
+      description: 'Lit un fichier texte de l’ordinateur partagé.',
+      inputSchema: z.object({ path: z.string() }),
+      execute: async (input) => executeAction('workspace_read', input, { conversationId }),
+    }),
+    workspace_write: gated(
+      'workspace_write',
+      'Écrit un fichier sur l’ordinateur partagé. Demande une approbation.',
+      z.object({ path: z.string(), content: z.string() }),
+    ),
+    workspace_delete: gated(
+      'workspace_delete',
+      'Supprime un fichier de l’ordinateur partagé. Demande une approbation.',
+      z.object({ path: z.string() }),
+    ),
+    workspace_shell: gated(
+      'workspace_shell',
+      'Exécute une commande dans l’ordinateur partagé. Demande une approbation.',
+      z.object({ command: z.string() }),
+    ),
+    forget: gated(
+      'forget',
+      'Oublie les souvenirs dont le texte contient la requête. Demande une approbation.',
+      z.object({ query: z.string() }),
+    ),
+    update_artifact: gated(
+      'update_artifact',
+      'Réécrit un artefact texte déjà généré dans cette conversation. Demande une approbation.',
+      z.object({ attachmentId: z.string(), content: z.string() }),
+    ),
+    handoff: gated(
+      'handoff',
+      `Transmet une tâche à un autre bot, qui la reçoit dans sa conversation. Bots : ${bots || 'aucun'}. Demande une approbation.`,
+      z.object({
+        personaId: z.string(),
+        note: z.string(),
+      }),
+    ),
+  };
+}
+
 export function buildTools(options: {
   conversationId: string;
+  personaId?: string | null;
   web: boolean;
   images: boolean;
 }): ToolSet {
   const tools: ToolSet = {
     create_artifact: createArtifactTool(options.conversationId),
     set_reminder: reminderTool(options.conversationId),
+    ...computerTools(options.conversationId, options.personaId ?? null),
   };
   if (options.web && webSearchAvailable()) tools.web_search = webSearch;
   if (options.images && imageGenerationAvailable()) {

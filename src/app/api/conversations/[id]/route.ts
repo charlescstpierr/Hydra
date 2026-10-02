@@ -1,3 +1,4 @@
+import { listActivities, listApprovals, listReactions } from '@/lib/agent-store';
 import {
   deleteConversation,
   getConversation,
@@ -23,6 +24,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     memories: listMemories(memoryRootId(id)),
     attachments: listAttachments(messages.map((m) => m.id)),
     sideChats: listSideChats(id),
+    activities: listActivities(id),
+    reactions: listReactions(messages.map((message) => message.id)),
+    approvals: listApprovals(id),
   });
 }
 

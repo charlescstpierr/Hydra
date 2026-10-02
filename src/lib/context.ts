@@ -1,9 +1,9 @@
 import type { ModelMessage, UserContent } from 'ai';
+import type { Skill } from './agent-store';
 import type { Attachment, Conversation, Memory, Message, Persona, Reminder } from './db';
 import { readAttachment } from './files';
 import { modelLabel } from './models';
 
-/** Number of recent messages kept verbatim; older ones live in the rolling summary. */
 export const WINDOW_SIZE = Number(process.env.CONTEXT_WINDOW_MESSAGES ?? 30);
 
 const COHERENCE_RULES = `Tu es une seule et même entité, quel que soit le modèle qui génère la réponse.
@@ -17,7 +17,6 @@ Règles de cohérence, non négociables :
 
 export const DEFAULT_PERSONA = `Tu es Hydra, un assistant direct, concret et sans flagornerie. Tu réponds dans la langue de l'utilisateur.`;
 
-/** Turns a bot definition (identity, pitch, tone traits) into a system prompt. */
 export function personaPrompt(persona: Persona): string {
   const parts = [`Tu es ${persona.name}.`];
   if (persona.tagline.trim()) parts.push(persona.tagline.trim());
@@ -38,6 +37,8 @@ export function buildInstructions(input: {
   activeModelId: string;
   parent?: Conversation | null;
   reminders?: Reminder[];
+  skills?: Skill[];
+  peers?: Persona[];
 }): string {
   const { conversation, personaInstructions, memories, history, activeModelId } = input;
   const sections: string[] = [personaInstructions.trim() || DEFAULT_PERSONA, COHERENCE_RULES];
@@ -70,6 +71,22 @@ export function buildInstructions(input: {
     sections.push(
       `Rappels en cours :\n${reminders
         .map((r) => `- ${r.due_at} : ${r.title}${r.details ? ` (${r.details})` : ''}`)
+        .join('\n')}`,
+    );
+  }
+
+  if (input.skills && input.skills.length > 0) {
+    sections.push(
+      `Compétences invoquées pour ce tour :\n${input.skills
+        .map((skill) => `## ${skill.name} (/${skill.slug})\n${skill.instructions}`)
+        .join('\n\n')}`,
+    );
+  }
+
+  if (input.peers && input.peers.length > 0) {
+    sections.push(
+      `Autres bots disponibles pour un relais (outil handoff) :\n${input.peers
+        .map((peer) => `- ${peer.name} (${peer.id}) : ${peer.tagline}`)
         .join('\n')}`,
     );
   }
@@ -118,13 +135,19 @@ export async function buildModelMessages(
       continue;
     }
 
+    const quoted = message.reply_to_id
+      ? history.find((item) => item.id === message.reply_to_id)
+      : undefined;
+    const text = quoted
+      ? `En réponse à : « ${quoted.content.slice(0, 500)} »\n\n${message.content}`
+      : message.content;
     const files = byMessage.get(message.id) ?? [];
     if (files.length === 0) {
-      messages.push({ role: 'user', content: message.content });
+      messages.push({ role: 'user', content: text });
       continue;
     }
 
-    const parts: Exclude<UserContent, string> = [{ type: 'text', text: message.content }];
+    const parts: Exclude<UserContent, string> = [{ type: 'text', text }];
     for (const file of files) {
       try {
         const data = await readAttachment(file);
